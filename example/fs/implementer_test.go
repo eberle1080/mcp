@@ -5,19 +5,19 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/eberle1080/mcp/example/resource"
 	serverproto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/example/resource"
 	"testing"
 	"time"
 
+	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/server"
 	"github.com/stretchr/testify/assert"
 	_ "github.com/viant/afs/embed"
 	"github.com/viant/afs/storage"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport/client/http/sse"
 	"github.com/viant/mcp-protocol/schema"
-	"github.com/viant/mcp/client"
-	"github.com/viant/mcp/server"
 )
 
 //go:embed testdata/*

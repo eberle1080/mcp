@@ -2,21 +2,21 @@ package mcp
 
 import (
 	"context"
+	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/client/auth/store"
+	mcpserver "github.com/eberle1080/mcp/server"
 	"github.com/viant/afs/url"
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/oauth2/meta"
-	"github.com/viant/mcp/client"
-	"github.com/viant/mcp/client/auth/store"
-	mcpserver "github.com/viant/mcp/server"
 	"github.com/viant/scy/auth/authorizer"
 	"github.com/viant/scy/auth/flow"
 	"net/http"
 	"sync"
 
 	"bytes"
+	authtransport "github.com/eberle1080/mcp/client/auth/transport"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
-	authtransport "github.com/viant/mcp/client/auth/transport"
 
 	sse "github.com/viant/jsonrpc/transport/client/http/sse"
 	streamable "github.com/viant/jsonrpc/transport/client/http/streamable"

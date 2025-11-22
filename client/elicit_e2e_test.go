@@ -11,6 +11,7 @@ import (
 
 	"net/http"
 
+	clientpkg "github.com/eberle1080/mcp/client"
 	"github.com/stretchr/testify/require"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
@@ -20,7 +21,6 @@ import (
 	streamingserver "github.com/viant/jsonrpc/transport/server/http/streamable"
 	pclient "github.com/viant/mcp-protocol/client"
 	"github.com/viant/mcp-protocol/schema"
-	clientpkg "github.com/viant/mcp/client"
 )
 
 // testClientHandler implements pclient.Handler to handle server-initiated calls (elicitation).

@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
+	"github.com/eberle1080/mcp/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/viant/mcp-protocol/schema"
 	serverproto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/client"
 	"testing"
 )
 

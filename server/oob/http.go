@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/viant/mcp/server/namespace"
+	"github.com/eberle1080/mcp/server/namespace"
 )
 
 // idExtractor extracts a pending id from the request.

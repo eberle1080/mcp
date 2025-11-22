@@ -3,8 +3,8 @@ package transport
 import (
 	"net/http"
 
+	"github.com/eberle1080/mcp/client/auth/store"
 	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp/client/auth/store"
 	"github.com/viant/scy/auth/flow"
 )
 

@@ -15,15 +15,15 @@ import (
 	"github.com/viant/scy/auth/authorizer"
 	"github.com/viant/scy/auth/flow"
 
-	"github.com/viant/mcp/client/auth"
-	"github.com/viant/mcp/client/auth/store"
-	authtransport "github.com/viant/mcp/client/auth/transport"
+	"github.com/eberle1080/mcp/client/auth"
+	"github.com/eberle1080/mcp/client/auth/store"
+	authtransport "github.com/eberle1080/mcp/client/auth/transport"
 
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/oauth2/meta"
 
+	"github.com/eberle1080/mcp/client"
 	pclient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp/client"
 )
 
 // ClientOptions

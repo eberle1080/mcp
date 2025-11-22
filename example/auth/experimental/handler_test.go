@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/eberle1080/mcp/example/tool"
+	"github.com/eberle1080/mcp/server/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/viant/gosh"
 	"github.com/viant/gosh/runner/local"
@@ -14,8 +16,6 @@ import (
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/oauth2/meta"
 	serverproto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/example/tool"
-	"github.com/viant/mcp/server/auth"
 
 	"github.com/viant/mcp-protocol/schema"
 
@@ -25,12 +25,12 @@ import (
 
 	"net/http/cookiejar"
 
-	"github.com/viant/mcp/client"
-	clientauth "github.com/viant/mcp/client/auth"
-	"github.com/viant/mcp/client/auth/mock"
-	"github.com/viant/mcp/client/auth/store"
-	"github.com/viant/mcp/client/auth/transport"
-	"github.com/viant/mcp/server"
+	"github.com/eberle1080/mcp/client"
+	clientauth "github.com/eberle1080/mcp/client/auth"
+	"github.com/eberle1080/mcp/client/auth/mock"
+	"github.com/eberle1080/mcp/client/auth/store"
+	"github.com/eberle1080/mcp/client/auth/transport"
+	"github.com/eberle1080/mcp/server"
 	"github.com/viant/scy/auth/flow"
 )
 

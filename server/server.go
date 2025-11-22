@@ -3,12 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/server/auth"
 	"github.com/viant/jsonrpc/transport"
 	"github.com/viant/mcp-protocol/schema"
 	"github.com/viant/mcp-protocol/server"
 	"github.com/viant/mcp-protocol/syncmap"
-	"github.com/viant/mcp/client"
-	"github.com/viant/mcp/server/auth"
 	"net/http"
 )
 

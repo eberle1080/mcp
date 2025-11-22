@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/eberle1080/mcp/server"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/mcp-protocol/schema"
 	serverproto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/server"
 )
 
 func Usage_Example() {

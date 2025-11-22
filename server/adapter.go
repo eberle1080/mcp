@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/eberle1080/mcp/client"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/mcp-protocol/schema"
-	"github.com/viant/mcp/client"
 )
 
 // Adapter adapts a handler Handler to implement the client.Interface

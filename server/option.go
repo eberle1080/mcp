@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/eberle1080/mcp/server/auth"
 	"github.com/viant/mcp-protocol/schema"
 	"github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/server/auth"
 )
 
 // Option is a function that configures the handler.

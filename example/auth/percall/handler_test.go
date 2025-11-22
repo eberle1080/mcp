@@ -13,6 +13,12 @@ import (
 
 	"net/http/cookiejar"
 
+	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/client/auth/mock"
+	authtransport "github.com/eberle1080/mcp/client/auth/transport"
+	"github.com/eberle1080/mcp/example/tool"
+	"github.com/eberle1080/mcp/server"
+	"github.com/eberle1080/mcp/server/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/viant/gosh"
 	"github.com/viant/gosh/runner/local"
@@ -22,12 +28,6 @@ import (
 	"github.com/viant/mcp-protocol/oauth2/meta"
 	"github.com/viant/mcp-protocol/schema"
 	serverproto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/client"
-	"github.com/viant/mcp/client/auth/mock"
-	authtransport "github.com/viant/mcp/client/auth/transport"
-	"github.com/viant/mcp/example/tool"
-	"github.com/viant/mcp/server"
-	"github.com/viant/mcp/server/auth"
 )
 
 const (

@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"fmt"
+	mcpauth "github.com/eberle1080/mcp/server/auth"
 	streamauth "github.com/viant/jsonrpc/transport/server/auth"
 	"github.com/viant/jsonrpc/transport/server/http/sse"
 	"github.com/viant/jsonrpc/transport/server/http/streamable"
-	mcpauth "github.com/viant/mcp/server/auth"
 	"os"
 	"strings"
 	"sync"

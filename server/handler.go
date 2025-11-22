@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/eberle1080/mcp/internal/conv"
+	"github.com/eberle1080/mcp/server/auth"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
 	authschema "github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/schema"
 	"github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/internal/conv"
-	"github.com/viant/mcp/server/auth"
 )
 
 // Handler represents handler

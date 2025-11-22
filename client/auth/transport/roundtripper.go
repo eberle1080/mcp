@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eberle1080/mcp/client/auth/store"
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/oauth2/meta"
-	"github.com/viant/mcp/client/auth/store"
 	"github.com/viant/scy/auth/flow"
 	"golang.org/x/oauth2"
 )

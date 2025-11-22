@@ -7,9 +7,9 @@ import (
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/schema"
 
+	"github.com/eberle1080/mcp/server"
+	"github.com/eberle1080/mcp/server/auth"
 	protoserver "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/server"
-	"github.com/viant/mcp/server/auth"
 )
 
 // ServerOptions defines options for configuring an MCP server.

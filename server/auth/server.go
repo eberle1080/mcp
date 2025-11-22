@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eberle1080/mcp/client/auth/transport"
 	"github.com/viant/jsonrpc"
 	streamauth "github.com/viant/jsonrpc/transport/server/auth"
 	"github.com/viant/jsonrpc/transport/server/http/session"
 	"github.com/viant/mcp-protocol/authorization"
 	"github.com/viant/mcp-protocol/schema"
 	"github.com/viant/mcp-protocol/syncmap"
-	"github.com/viant/mcp/client/auth/transport"
 	"github.com/viant/scy/auth"
 	"golang.org/x/oauth2"
 )

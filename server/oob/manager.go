@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eberle1080/mcp/server/namespace"
 	"github.com/google/uuid"
-	"github.com/viant/mcp/server/namespace"
 )
 
 // CallbackBuilder returns a callback URL for the given id. The service should

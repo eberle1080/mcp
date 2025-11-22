@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/eberle1080/mcp/server"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/mcp-protocol/schema"
 	proto "github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp/server"
 )
 
 func main() {
