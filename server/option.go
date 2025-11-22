@@ -1,14 +1,24 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/viant/mcp-protocol/schema"
 	"github.com/viant/mcp-protocol/server"
 	"github.com/viant/mcp/server/auth"
-	"net/http"
 )
 
 // Option is a function that configures the handler.
 type Option func(s *Server) error
+
+// WithInstructions adds instructions to the handler.
+func WithInstructions(instructions string) Option {
+	return func(s *Server) error {
+		s.instructions = &instructions
+
+		return nil
+	}
+}
 
 // WithCORS adds a new CORS handler to the handler.
 func WithCORS(cors *Cors) Option {
