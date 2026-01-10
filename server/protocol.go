@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 	"net/http"
 )
 

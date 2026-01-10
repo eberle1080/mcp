@@ -2,7 +2,7 @@ package mock
 
 import (
 	"encoding/json"
-	"github.com/viant/mcp-protocol/oauth2/meta"
+	"github.com/eberle1080/mcp-protocol/oauth2/meta"
 	"net/http"
 )
 

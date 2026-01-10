@@ -1,7 +1,7 @@
 // Package clientHandler implements a high-level Go clientHandler for the Model Context Protocol (MCP).
 //
 // It provides a thin wrapper around the protocol interface defined in the
-// github.com/viant/mcp-protocol module and adds:
+// github.com/eberle1080/mcp-protocol module and adds:
 //   - Automatic `initialize` handshake and capability negotiation.
 //   - Pluggable JSON-RPC transports (STDIO, HTTP/SSE, Streaming …).
 //   - Optional authorization interceptor that can acquire OAuth2/OIDC tokens on the

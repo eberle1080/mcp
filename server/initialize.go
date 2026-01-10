@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/viant/jsonrpc"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // Initialize handles the initialize method

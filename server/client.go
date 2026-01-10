@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
-	"github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // Client implements mcp-protocol/client.Operations for the handler side. It allows

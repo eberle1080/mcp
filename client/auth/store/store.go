@@ -4,7 +4,7 @@ import (
 	"crypto"
 	"github.com/viant/afs/http"
 	"github.com/viant/afs/url"
-	"github.com/viant/mcp-protocol/oauth2/meta"
+	"github.com/eberle1080/mcp-protocol/oauth2/meta"
 	"golang.org/x/oauth2"
 	"strings"
 	"sync"

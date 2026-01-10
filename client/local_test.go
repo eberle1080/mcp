@@ -10,8 +10,8 @@ import (
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport/client/http/sse"
 	"github.com/viant/jsonrpc/transport/client/stdio"
-	"github.com/viant/mcp-protocol/schema"
-	schema2 "github.com/viant/mcp-protocol/schema/2025-06-18"
+	"github.com/eberle1080/mcp-protocol/schema"
+	schema2 "github.com/eberle1080/mcp-protocol/schema/2025-06-18"
 )
 
 func TestClient(t *testing.T) {

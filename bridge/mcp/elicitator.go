@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/viant/jsonrpc"
-	protoClient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	protoClient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 type Elicitator struct {

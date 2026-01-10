@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // Interface defines the clientHandler interface for all exported methods

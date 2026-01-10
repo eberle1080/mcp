@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/viant/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/authorization"
 	"golang.org/x/oauth2"
 )
 

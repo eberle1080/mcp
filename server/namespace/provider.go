@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/viant/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/authorization"
 )
 
 // Provider computes a namespace descriptor from request context/token.

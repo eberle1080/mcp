@@ -6,8 +6,8 @@ import (
 	"github.com/eberle1080/mcp/client/auth/store"
 	mcpserver "github.com/eberle1080/mcp/server"
 	"github.com/viant/afs/url"
-	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/oauth2/meta"
+	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/oauth2/meta"
 	"github.com/viant/scy/auth/authorizer"
 	"github.com/viant/scy/auth/flow"
 	"net/http"
@@ -23,10 +23,10 @@ import (
 
 	stdiosrv "github.com/viant/jsonrpc/transport/server/stdio"
 
-	protoClient "github.com/viant/mcp-protocol/client"
-	protologger "github.com/viant/mcp-protocol/logger"
-	"github.com/viant/mcp-protocol/schema"
-	protoserver "github.com/viant/mcp-protocol/server"
+	protoClient "github.com/eberle1080/mcp-protocol/client"
+	protologger "github.com/eberle1080/mcp-protocol/logger"
+	"github.com/eberle1080/mcp-protocol/schema"
+	protoserver "github.com/eberle1080/mcp-protocol/server"
 )
 
 // opsHandler adapts protoClient.Operations to proto client.Handler by forwarding notifications.

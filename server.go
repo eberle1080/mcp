@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/schema"
 
 	"github.com/eberle1080/mcp/server"
 	"github.com/eberle1080/mcp/server/auth"
-	protoserver "github.com/viant/mcp-protocol/server"
+	protoserver "github.com/eberle1080/mcp-protocol/server"
 )
 
 // ServerOptions defines options for configuring an MCP server.

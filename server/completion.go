@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/viant/jsonrpc"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // Complete handles the completion/complete method

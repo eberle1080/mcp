@@ -9,9 +9,9 @@ import (
 	"github.com/eberle1080/mcp/server/auth"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
-	authschema "github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/schema"
-	"github.com/viant/mcp-protocol/server"
+	authschema "github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/server"
 )
 
 // Handler represents handler

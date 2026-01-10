@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
-	meta "github.com/viant/mcp-protocol/oauth2/meta"
+	meta "github.com/eberle1080/mcp-protocol/oauth2/meta"
 	"golang.org/x/oauth2"
 	"math/rand"
 	"net/http"

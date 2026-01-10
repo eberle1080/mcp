@@ -8,8 +8,8 @@ import (
 
 	"github.com/eberle1080/mcp/server"
 	"github.com/viant/jsonrpc"
-	"github.com/viant/mcp-protocol/schema"
-	serverproto "github.com/viant/mcp-protocol/server"
+	"github.com/eberle1080/mcp-protocol/schema"
+	serverproto "github.com/eberle1080/mcp-protocol/server"
 )
 
 func Usage_Example() {

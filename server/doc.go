@@ -1,6 +1,6 @@
 // Package handler provides a configurable MCP handler implementation.
 //
-// It wires protocol handlers from the github.com/viant/mcp-protocol/handler
+// It wires protocol handlers from the github.com/eberle1080/mcp-protocol/handler
 // package with optional middleware such as:
 //   - Transport (HTTP, HTTP-SSE, Streaming, STDIO)
 //   - OAuth2 / OIDC authorization

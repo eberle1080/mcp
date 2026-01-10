@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/viant/jsonrpc"
-	pclient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	pclient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 type Handler struct {

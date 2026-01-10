@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/viant/jsonrpc"
-	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/schema"
 	"strings"
 )
 

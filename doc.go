@@ -1,7 +1,7 @@
 // Package mcp provides high-level helpers for working with the Model Context Protocol (MCP).
 //
 // The package glues the low-level protocol types defined in the
-// github.com/viant/mcp-protocol module with concrete transports, authentication layers
+// github.com/eberle1080/mcp-protocol module with concrete transports, authentication layers
 // and convenience configuration structures.  In practice it is used as an umbrella
 // package that exposes two primary entry-points:
 //  1. NewClient – returns a fully configured MCP client instance and

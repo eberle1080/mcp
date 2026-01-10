@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
-	"github.com/viant/mcp-protocol/logger"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/logger"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 type Logger struct {

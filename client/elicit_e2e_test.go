@@ -19,8 +19,8 @@ import (
 	streamingclient "github.com/viant/jsonrpc/transport/client/http/streamable"
 	sseserver "github.com/viant/jsonrpc/transport/server/http/sse"
 	streamingserver "github.com/viant/jsonrpc/transport/server/http/streamable"
-	pclient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	pclient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // testClientHandler implements pclient.Handler to handle server-initiated calls (elicitation).

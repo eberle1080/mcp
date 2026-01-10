@@ -6,9 +6,9 @@ import (
 	"github.com/eberle1080/mcp/client"
 	"github.com/eberle1080/mcp/server/auth"
 	"github.com/viant/jsonrpc/transport"
-	"github.com/viant/mcp-protocol/schema"
-	"github.com/viant/mcp-protocol/server"
-	"github.com/viant/mcp-protocol/syncmap"
+	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp-protocol/syncmap"
 	"net/http"
 )
 

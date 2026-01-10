@@ -13,11 +13,11 @@ import (
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport/client/http/sse"
 	streamable "github.com/viant/jsonrpc/transport/client/http/streamable"
-	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/oauth2/meta"
-	serverproto "github.com/viant/mcp-protocol/server"
+	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/oauth2/meta"
+	serverproto "github.com/eberle1080/mcp-protocol/server"
 
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 
 	"net/http"
 	"testing"

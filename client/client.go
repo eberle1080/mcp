@@ -13,8 +13,8 @@ import (
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
 	stdiotransport "github.com/viant/jsonrpc/transport/client/stdio"
-	pclient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	pclient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 var errUninitialized = fmt.Errorf("clientHandler is not initialized")

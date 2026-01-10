@@ -6,8 +6,8 @@ import (
 	"github.com/viant/afs"
 	"github.com/viant/afs/storage"
 	"github.com/viant/jsonrpc"
-	"github.com/viant/mcp-protocol/schema"
-	proto "github.com/viant/mcp-protocol/server"
+	"github.com/eberle1080/mcp-protocol/schema"
+	proto "github.com/eberle1080/mcp-protocol/server"
 	"mime"
 	"path/filepath"
 )

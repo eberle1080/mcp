@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
-	pclient "github.com/viant/mcp-protocol/client"
-	"github.com/viant/mcp-protocol/schema"
+	pclient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 // --- Unit tests for client-side Elicit handling (no network) ---

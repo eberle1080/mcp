@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eberle1080/mcp/example/resource"
-	serverproto "github.com/viant/mcp-protocol/server"
+	serverproto "github.com/eberle1080/mcp-protocol/server"
 	"testing"
 	"time"
 
@@ -17,7 +17,7 @@ import (
 	"github.com/viant/afs/storage"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport/client/http/sse"
-	"github.com/viant/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/schema"
 )
 
 //go:embed testdata/*

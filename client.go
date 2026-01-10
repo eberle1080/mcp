@@ -19,11 +19,11 @@ import (
 	"github.com/eberle1080/mcp/client/auth/store"
 	authtransport "github.com/eberle1080/mcp/client/auth/transport"
 
-	"github.com/viant/mcp-protocol/authorization"
-	"github.com/viant/mcp-protocol/oauth2/meta"
+	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/oauth2/meta"
 
 	"github.com/eberle1080/mcp/client"
-	pclient "github.com/viant/mcp-protocol/client"
+	pclient "github.com/eberle1080/mcp-protocol/client"
 )
 
 // ClientOptions
