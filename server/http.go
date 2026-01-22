@@ -7,9 +7,9 @@ import (
 
 	"fmt"
 	mcpauth "github.com/eberle1080/mcp/server/auth"
-	streamauth "github.com/viant/jsonrpc/transport/server/auth"
-	"github.com/viant/jsonrpc/transport/server/http/sse"
-	"github.com/viant/jsonrpc/transport/server/http/streamable"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
+	"github.com/eberle1080/jsonrpc/transport/server/http/sse"
+	"github.com/eberle1080/jsonrpc/transport/server/http/streamable"
 	"os"
 	"strings"
 	"sync"

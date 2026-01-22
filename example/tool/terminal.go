@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/viant/gosh"
-	"github.com/viant/jsonrpc"
+	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 )

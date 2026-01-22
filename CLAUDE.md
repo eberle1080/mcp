@@ -255,7 +255,7 @@ The `schema` package (from mcp-protocol) defines all protocol types:
 
 - **Module**: `github.com/eberle1080/mcp` (this is a fork; upstream is `github.com/viant/mcp`)
 - **Protocol Package**: `github.com/eberle1080/mcp-protocol` (fork of `github.com/viant/mcp-protocol`)
-- **JSON-RPC**: `github.com/viant/jsonrpc` - transport abstraction
+- **JSON-RPC**: `github.com/eberle1080/jsonrpc` - transport abstraction
 - **OAuth2**: `golang.org/x/oauth2` + `github.com/viant/scy` - auth flows
 - **File System**: `github.com/viant/afs` - abstract file system for examples
 

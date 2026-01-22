@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/viant/jsonrpc/transport"
-	"github.com/viant/jsonrpc/transport/client/http/sse"
-	"github.com/viant/jsonrpc/transport/client/http/streamable"
+	"github.com/eberle1080/jsonrpc/transport"
+	"github.com/eberle1080/jsonrpc/transport/client/http/sse"
+	"github.com/eberle1080/jsonrpc/transport/client/http/streamable"
 
-	"github.com/viant/jsonrpc/transport/client/stdio"
+	"github.com/eberle1080/jsonrpc/transport/client/stdio"
 
 	"github.com/viant/scy/auth/authorizer"
 	"github.com/viant/scy/auth/flow"

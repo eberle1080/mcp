@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/eberle1080/mcp/client/auth/transport"
-	"github.com/viant/jsonrpc"
+	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"golang.org/x/oauth2"

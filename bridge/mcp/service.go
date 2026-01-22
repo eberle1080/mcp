@@ -15,13 +15,13 @@ import (
 
 	"bytes"
 	authtransport "github.com/eberle1080/mcp/client/auth/transport"
-	"github.com/viant/jsonrpc"
-	"github.com/viant/jsonrpc/transport"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/jsonrpc/transport"
 
-	sse "github.com/viant/jsonrpc/transport/client/http/sse"
-	streamable "github.com/viant/jsonrpc/transport/client/http/streamable"
+	sse "github.com/eberle1080/jsonrpc/transport/client/http/sse"
+	streamable "github.com/eberle1080/jsonrpc/transport/client/http/streamable"
 
-	stdiosrv "github.com/viant/jsonrpc/transport/server/stdio"
+	stdiosrv "github.com/eberle1080/jsonrpc/transport/server/stdio"
 
 	protoClient "github.com/eberle1080/mcp-protocol/client"
 	protologger "github.com/eberle1080/mcp-protocol/logger"

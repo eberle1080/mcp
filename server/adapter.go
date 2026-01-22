@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/eberle1080/mcp/client"
-	"github.com/viant/jsonrpc"
+	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
 

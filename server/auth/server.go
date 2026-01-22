@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/eberle1080/mcp/client/auth/transport"
-	"github.com/viant/jsonrpc"
-	streamauth "github.com/viant/jsonrpc/transport/server/auth"
-	"github.com/viant/jsonrpc/transport/server/http/session"
+	"github.com/eberle1080/jsonrpc"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
+	"github.com/eberle1080/jsonrpc/transport/server/http/session"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/syncmap"

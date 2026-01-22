@@ -7,8 +7,8 @@ import (
 
 	"github.com/eberle1080/mcp/internal/conv"
 	"github.com/eberle1080/mcp/server/auth"
-	"github.com/viant/jsonrpc"
-	"github.com/viant/jsonrpc/transport"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/jsonrpc/transport"
 	authschema "github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"

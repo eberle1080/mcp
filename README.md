@@ -75,7 +75,7 @@ import (
   "context"
   "encoding/json"
   "fmt"
-  "github.com/viant/jsonrpc"
+  "github.com/eberle1080/jsonrpc"
   "github.com/viant/mcp-protocol/schema"
   serverproto "github.com/viant/mcp-protocol/server"
   "github.com/viant/mcp/server"

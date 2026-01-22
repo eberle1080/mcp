@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"github.com/viant/afs"
 	"github.com/viant/afs/storage"
-	"github.com/viant/jsonrpc"
+	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 	proto "github.com/eberle1080/mcp-protocol/server"
 	"mime"

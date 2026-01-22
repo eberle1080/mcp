@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/viant/jsonrpc"
-	"github.com/viant/jsonrpc/transport/client/http/sse"
-	"github.com/viant/jsonrpc/transport/client/stdio"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/jsonrpc/transport/client/http/sse"
+	"github.com/eberle1080/jsonrpc/transport/client/stdio"
 	"github.com/eberle1080/mcp-protocol/schema"
 	schema2 "github.com/eberle1080/mcp-protocol/schema/2025-06-18"
 )

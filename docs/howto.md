@@ -14,7 +14,7 @@ This guide shows how to spin up a minimal MCP server in Go, register a typed too
         "encoding/json"
         "log"
 
-        "github.com/viant/jsonrpc"
+        "github.com/eberle1080/jsonrpc"
         proto "github.com/viant/mcp-protocol/server"
         "github.com/viant/mcp-protocol/schema"
         "github.com/viant/mcp/server"

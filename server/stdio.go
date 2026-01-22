@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"github.com/viant/jsonrpc/transport/server/stdio"
+	"github.com/eberle1080/jsonrpc/transport/server/stdio"
 )
 
 type stdioServer struct {

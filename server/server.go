@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/eberle1080/mcp/client"
 	"github.com/eberle1080/mcp/server/auth"
-	"github.com/viant/jsonrpc/transport"
+	"github.com/eberle1080/jsonrpc/transport"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp-protocol/syncmap"

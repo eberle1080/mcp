@@ -10,9 +10,9 @@ import (
 
 	"github.com/eberle1080/mcp/client/auth"
 	authtransport "github.com/eberle1080/mcp/client/auth/transport"
-	"github.com/viant/jsonrpc"
-	"github.com/viant/jsonrpc/transport"
-	stdiotransport "github.com/viant/jsonrpc/transport/client/stdio"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/jsonrpc/transport"
+	stdiotransport "github.com/eberle1080/jsonrpc/transport/client/stdio"
 	pclient "github.com/eberle1080/mcp-protocol/client"
 	"github.com/eberle1080/mcp-protocol/schema"
 )

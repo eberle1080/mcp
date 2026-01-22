@@ -16,7 +16,7 @@ import (
 
     mcpclient "github.com/viant/mcp/client"
     "github.com/viant/mcp-protocol/schema"
-    sse "github.com/viant/jsonrpc/transport/client/http/sse"
+    sse "github.com/eberle1080/jsonrpc/transport/client/http/sse"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 
 ```go
 import (
-    streamable "github.com/viant/jsonrpc/transport/client/http/streamable"
+    streamable "github.com/eberle1080/jsonrpc/transport/client/http/streamable"
 )
 
 transport, _ := streamable.New(ctx, "http://localhost:4981/")
@@ -48,7 +48,7 @@ _, _ = cli.Initialize(ctx)
 
 ```go
 import (
-    stdio "github.com/viant/jsonrpc/transport/client/stdio"
+    stdio "github.com/eberle1080/jsonrpc/transport/client/stdio"
 )
 
 transport, _ := stdio.New("./your-mcp-server-binary",
@@ -198,5 +198,5 @@ fmt.Println(comp.Content)
 References:
 - Client: `github.com/viant/mcp/client`
 - Protocol schema: `github.com/viant/mcp-protocol/schema`
-- Transports: `github.com/viant/jsonrpc/transport/client/...`
+- Transports: `github.com/eberle1080/jsonrpc/transport/client/...`
 - Auth: `github.com/viant/mcp/client/auth/transport`

@@ -1,6 +1,6 @@
 package auth
 
-import streamauth "github.com/viant/jsonrpc/transport/server/auth"
+import streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 
 // Defaults used to integrate MCP auth middleware with jsonrpc transport BFF auth cookie handling.
 var (

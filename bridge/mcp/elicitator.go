@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/viant/jsonrpc"
+	"github.com/eberle1080/jsonrpc"
 	protoClient "github.com/eberle1080/mcp-protocol/client"
 	"github.com/eberle1080/mcp-protocol/schema"
 )

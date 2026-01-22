@@ -13,12 +13,12 @@ import (
 
 	clientpkg "github.com/eberle1080/mcp/client"
 	"github.com/stretchr/testify/require"
-	"github.com/viant/jsonrpc"
-	"github.com/viant/jsonrpc/transport"
-	sseclient "github.com/viant/jsonrpc/transport/client/http/sse"
-	streamingclient "github.com/viant/jsonrpc/transport/client/http/streamable"
-	sseserver "github.com/viant/jsonrpc/transport/server/http/sse"
-	streamingserver "github.com/viant/jsonrpc/transport/server/http/streamable"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/jsonrpc/transport"
+	sseclient "github.com/eberle1080/jsonrpc/transport/client/http/sse"
+	streamingclient "github.com/eberle1080/jsonrpc/transport/client/http/streamable"
+	sseserver "github.com/eberle1080/jsonrpc/transport/server/http/sse"
+	streamingserver "github.com/eberle1080/jsonrpc/transport/server/http/streamable"
 	pclient "github.com/eberle1080/mcp-protocol/client"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
