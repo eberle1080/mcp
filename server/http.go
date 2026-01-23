@@ -2,17 +2,18 @@ package server
 
 import (
 	"context"
-	"net/http"
-	"time"
-
 	"fmt"
-	mcpauth "github.com/eberle1080/mcp/server/auth"
-	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
-	"github.com/eberle1080/jsonrpc/transport/server/http/sse"
-	"github.com/eberle1080/jsonrpc/transport/server/http/streamable"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/eberle1080/jsonrpc/transport/server/base"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
+	"github.com/eberle1080/jsonrpc/transport/server/http/sse"
+	"github.com/eberle1080/jsonrpc/transport/server/http/streamable"
+	mcpauth "github.com/eberle1080/mcp/server/auth"
 )
 
 type httpServer struct {
@@ -25,6 +26,7 @@ type httpServer struct {
 	sseMessageURI      string
 	streamableURI      string
 	rootRedirect       bool
+	sessionStore       base.SessionStore
 }
 
 // UseStreamableHTTP sets whether to use streamableHTTP or SSE for the HTTP handler.
@@ -65,21 +67,30 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 
 	// SSE and Streamable handlers with configured URIs
 	// Enable BFF auth cookie (opaque grant) and handshake rehydrate; do NOT set transport session in cookies.
-	s.sseHandler = sse.New(s.NewHandler,
+	sseOptions := []sse.Option{
 		sse.WithURI(s.sseURI),
 		sse.WithMessageURI(s.sseMessageURI),
 		// Enable auth cookie and rehydrate from it
 		sse.WithAuthStore(memAuth),
 		sse.WithBFFAuthCookie(&sse.BFFAuthCookie{Name: "BFF-Auth-Session", HttpOnly: true}),
 		sse.WithRehydrateOnHandshake(true),
-	)
-	s.streamingHandler = streamable.New(s.NewHandler,
+	}
+	streamableOptions := []streamable.Option{
 		streamable.WithURI(s.streamableURI),
 		// Enable auth cookie and rehydrate from it
 		streamable.WithAuthStore(memAuth),
 		streamable.WithBFFAuthCookie(&streamable.BFFAuthCookie{Name: "BFF-Auth-Session", HttpOnly: true}),
 		streamable.WithRehydrateOnHandshake(true),
-	)
+	}
+
+	// If a custom session store is provided, use it for both handlers
+	if s.sessionStore != nil {
+		sseOptions = append(sseOptions, sse.WithSessionStore(s.sessionStore))
+		streamableOptions = append(streamableOptions, streamable.WithSessionStore(s.sessionStore))
+	}
+
+	s.sseHandler = sse.New(s.NewHandler, sseOptions...)
+	s.streamingHandler = streamable.New(s.NewHandler, streamableOptions...)
 	mux := http.NewServeMux()
 	if len(s.customHTTPHandlers) > 0 {
 		for path, handler := range s.customHTTPHandlers {

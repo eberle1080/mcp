@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/eberle1080/jsonrpc/transport/server/base"
 	"github.com/eberle1080/mcp/server/auth"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
@@ -132,6 +133,15 @@ func WithCustomHTTPHandler(path string, handler http.HandlerFunc) Option {
 func WithProtocolVersion(version string) Option {
 	return func(s *Server) error {
 		s.protocolVersion = version
+		return nil
+	}
+}
+
+// WithSessionStore sets a custom session store for both SSE and Streamable handlers.
+// This allows using Redis or other persistent backends instead of in-memory storage.
+func WithSessionStore(store base.SessionStore) Option {
+	return func(s *Server) error {
+		s.sessionStore = store
 		return nil
 	}
 }
