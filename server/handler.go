@@ -39,6 +39,10 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 		response.Error = jsonrpc.NewInternalError(h.err.Error(), nil)
 		return
 	}
+	if h.handler == nil {
+		response.Error = jsonrpc.NewInternalError("handler not initialized", nil)
+		return
+	}
 	switch request.Method {
 	case schema.MethodInitialize, schema.MethodPing:
 	case schema.MethodLoggingSetLevel:
@@ -158,5 +162,7 @@ func (h *Handler) OnNotification(ctx context.Context, notification *jsonrpc.Noti
 		h.Initialized = true
 		return
 	}
-	h.handler.OnNotification(ctx, notification)
+	if h.handler != nil {
+		h.handler.OnNotification(ctx, notification)
+	}
 }
