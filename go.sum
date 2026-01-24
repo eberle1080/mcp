@@ -648,10 +648,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
-github.com/eberle1080/jsonrpc v0.0.0-20260123233743-881e69cd1fdf h1:LELY/3RNeqoAkBSWU9UQp4fmjeCn69a7BsCEsJFfiY8=
-github.com/eberle1080/jsonrpc v0.0.0-20260123233743-881e69cd1fdf/go.mod h1:QKNrKOq6K/th4y6nojNA66Qh4bUs9DINxjXKJhn9ZR0=
-github.com/eberle1080/mcp-protocol v0.0.0-20260123233900-72e57a291c9d h1:9dcRsr+Ou3k53ap9RVfAZeynIMDNaC9CtAQ2vCxoczA=
-github.com/eberle1080/mcp-protocol v0.0.0-20260123233900-72e57a291c9d/go.mod h1:pGdziAzZigslKHfS/Y+j2oPCBpPvshqkA4fzr5pTOpU=
+github.com/eberle1080/jsonrpc v0.0.0-20260124032003-c5a08751c92b h1:SFIXgB1A6b3m+DFw4qs8kgp8id2rFjzZjEV+g7PRGBE=
+github.com/eberle1080/jsonrpc v0.0.0-20260124032003-c5a08751c92b/go.mod h1:QKNrKOq6K/th4y6nojNA66Qh4bUs9DINxjXKJhn9ZR0=
+github.com/eberle1080/mcp-protocol v0.0.0-20260124032109-7f0a40045062 h1:OHx6QBh/eCZfiktN9X05DznnXKIyf2RTfNy7FDNL86M=
+github.com/eberle1080/mcp-protocol v0.0.0-20260124032109-7f0a40045062/go.mod h1:STZ6/WkheSRssddrB9+Mb3JrVCQzcN+a+njuc2e5BQU=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
