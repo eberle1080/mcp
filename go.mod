@@ -3,8 +3,8 @@ module github.com/eberle1080/mcp
 go 1.25.1
 
 require (
-	github.com/eberle1080/jsonrpc v0.0.0-20260124032003-c5a08751c92b
-	github.com/eberle1080/mcp-protocol v0.0.0-20260124032109-7f0a40045062
+	github.com/eberle1080/jsonrpc v0.0.0-20260124034128-3b1a6573d8f8
+	github.com/eberle1080/mcp-protocol v0.0.0-20260124034224-474516a97d38
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.5.0
