@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	github.com/eberle1080/jsonrpc v0.0.0-20260124035545-d76dafe469a0
-	github.com/eberle1080/mcp-protocol v0.0.0-20260127221629-350c65a97d2c
+	github.com/eberle1080/mcp-protocol v0.0.0-20260127222731-74c014092e04
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.5.0
