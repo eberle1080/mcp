@@ -83,7 +83,9 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 		result, err := h.Ping(ctx, request)
 		h.setResponse(response, result, err)
 	case schema.MethodResourcesList:
+		h.Logger.Info("DEBUG: resources/list request received")
 		result, err := h.ListResources(ctx, request)
+		h.Logger.Info(fmt.Sprintf("DEBUG: resources/list returned %d resources", len(result.Resources)))
 		h.setResponse(response, result, err)
 	case schema.MethodResourcesTemplatesList:
 		result, err := h.ListResourceTemplates(ctx, request)
