@@ -650,8 +650,8 @@ github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eberle1080/jsonrpc v0.0.0-20260128005140-00c6f4b1b5c1 h1:26gP71+Bd53yLcC2zJwE/P3mM0ZhD0epPhQ6K4hHlMA=
 github.com/eberle1080/jsonrpc v0.0.0-20260128005140-00c6f4b1b5c1/go.mod h1:QKNrKOq6K/th4y6nojNA66Qh4bUs9DINxjXKJhn9ZR0=
-github.com/eberle1080/mcp-protocol v0.0.0-20260128005329-65f3b6f64c2d h1:3MPlWfHvhIHyN3tEjfWB3Rtkv/opdrgghJUMjWxeQ3U=
-github.com/eberle1080/mcp-protocol v0.0.0-20260128005329-65f3b6f64c2d/go.mod h1:91UjvW9BdR/OuAfO4LMvZL9c6N7C/91mZFcGpn8AuFI=
+github.com/eberle1080/mcp-protocol v0.0.0-20260128040518-5dfb09d0111d h1:IOhCC8xpeG/xZsOj4wC5wI/Jmz3jbyYc4+Dsk8yLhzo=
+github.com/eberle1080/mcp-protocol v0.0.0-20260128040518-5dfb09d0111d/go.mod h1:XyMj7n0uPASjNg7bjfgOPdxSZokEw52VkI1FVepoNps=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
