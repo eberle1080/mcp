@@ -11,8 +11,10 @@ import (
 // ListResources handles the resources/list method
 func (h *Handler) ListResources(ctx context.Context, request *jsonrpc.Request) (*schema.ListResourcesResult, *jsonrpc.Error) {
 	listResourcesRequest := &schema.ListResourcesRequest{Method: schema.MethodResourcesList}
-	if err := json.Unmarshal(request.Params, &listResourcesRequest.Params); err != nil {
-		return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
+	if len(request.Params) > 0 {
+		if err := json.Unmarshal(request.Params, &listResourcesRequest.Params); err != nil {
+			return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
+		}
 	}
 	id, _ := jsonrpc.AsRequestIntId(request.Id)
 	jRequest := &jsonrpc.TypedRequest[*schema.ListResourcesRequest]{Id: uint64(id), Method: schema.MethodResourcesList, Request: listResourcesRequest}
@@ -22,8 +24,10 @@ func (h *Handler) ListResources(ctx context.Context, request *jsonrpc.Request) (
 // ListResourceTemplates handles the resources/templates/list method
 func (h *Handler) ListResourceTemplates(ctx context.Context, request *jsonrpc.Request) (*schema.ListResourceTemplatesResult, *jsonrpc.Error) {
 	listTemplatesRequest := &schema.ListResourceTemplatesRequest{Method: schema.MethodResourcesTemplatesList}
-	if err := json.Unmarshal(request.Params, &listTemplatesRequest.Params); err != nil {
-		return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
+	if len(request.Params) > 0 {
+		if err := json.Unmarshal(request.Params, &listTemplatesRequest.Params); err != nil {
+			return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
+		}
 	}
 	id, _ := jsonrpc.AsRequestIntId(request.Id)
 	jRequest := &jsonrpc.TypedRequest[*schema.ListResourceTemplatesRequest]{Id: uint64(id), Method: schema.MethodResourcesTemplatesList, Request: listTemplatesRequest}
