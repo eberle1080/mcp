@@ -171,6 +171,9 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 		value.ResultType = completeResultType
 		if version == schema.LatestProtocolVersion {
 			value.Meta = meta
+			ttl := 0
+			value.TtlMs = &ttl
+			value.CacheScope = schema.CacheableResultCacheScopePrivate
 		}
 	case *schema.ListToolsResult:
 		if value.Meta == nil {
