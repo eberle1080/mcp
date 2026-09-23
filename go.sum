@@ -890,8 +890,8 @@ github.com/viant/afs v1.30.0/go.mod h1:rScbFd9LJPGTM8HOI8Kjwee0AZ+MZMupAvFpPg+Qd
 github.com/viant/assertly v0.9.0/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
 github.com/viant/assertly v0.9.1-0.20220620174148-bab013f93a60 h1:VFJvCOHKXv4IqX8rJwn1otpHWQGgMDv2bXtAPgEzndM=
 github.com/viant/assertly v0.9.1-0.20220620174148-bab013f93a60/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
-github.com/viant/gosh v0.2.4 h1:kWy3gO00rXnX7Gi9k1jtIUKgzkreCNsJLfXzHKwENqw=
-github.com/viant/gosh v0.2.4/go.mod h1:KytU8mypZIFjjnIgrZAIFMpb0rGQWZmpCeg7kvsNbBY=
+github.com/viant/gosh v0.3.0 h1:7M2sW0pVV4xdsym8/9CnOpgffvQJOm8dmqI8kl6Jp4o=
+github.com/viant/gosh v0.3.0/go.mod h1:KytU8mypZIFjjnIgrZAIFMpb0rGQWZmpCeg7kvsNbBY=
 github.com/viant/scy v0.27.0 h1:b5139O9zUmF3Zufa6Ho3ZpuYbnnjZO2ELH+XHZ7tlAM=
 github.com/viant/scy v0.27.0/go.mod h1:7uNRS67X45YN+JqTLCcMEhehffVjqrejULEDln9p0Ao=
 github.com/viant/toolbox v0.34.5/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
