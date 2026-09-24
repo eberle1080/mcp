@@ -648,8 +648,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
-github.com/eberle1080/jsonrpc v0.0.0-20260923232424-f2e7106581ea h1:fEkbrkGRDEUFX16LGZuOhb+EhZ3yDlCydHBesUFerTg=
-github.com/eberle1080/jsonrpc v0.0.0-20260923232424-f2e7106581ea/go.mod h1:QKNrKOq6K/th4y6nojNA66Qh4bUs9DINxjXKJhn9ZR0=
+github.com/eberle1080/gosh v0.0.0-20260924024703-d461f5d2defc h1:IfQfa6xxFHpuZMPfHOUU1p1U51adFfi+J6zVAyf+LEA=
+github.com/eberle1080/gosh v0.0.0-20260924024703-d461f5d2defc/go.mod h1:GJei/7p+4rVfPCfdswWZBBSofYk7wN8XUkz+MMIPblY=
+github.com/eberle1080/jsonrpc v0.0.0-20260924024814-22862564dc34 h1:/tBFw5o7Z/vbxT4mjEgTs2vc3oDuyTbU6gtOBeluWlM=
+github.com/eberle1080/jsonrpc v0.0.0-20260924024814-22862564dc34/go.mod h1:FsypQubauzcD5X3nAMhXKbJ1x0EA9M6a5Y5rRqa2evI=
 github.com/eberle1080/mcp-protocol v0.0.0-20260924022050-9e54c1ef6ac5 h1:4x4aLSL0PKT9KwTIxF2/dPlatCtwaSDeJiYuxBCXo5k=
 github.com/eberle1080/mcp-protocol v0.0.0-20260924022050-9e54c1ef6ac5/go.mod h1:zcOTYDd2Nj+hQxmbzMDfhqAHF1F/7C9NEsNwo5qCAaU=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
@@ -892,8 +894,6 @@ github.com/viant/afs v1.30.0/go.mod h1:rScbFd9LJPGTM8HOI8Kjwee0AZ+MZMupAvFpPg+Qd
 github.com/viant/assertly v0.9.0/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
 github.com/viant/assertly v0.9.1-0.20220620174148-bab013f93a60 h1:VFJvCOHKXv4IqX8rJwn1otpHWQGgMDv2bXtAPgEzndM=
 github.com/viant/assertly v0.9.1-0.20220620174148-bab013f93a60/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
-github.com/viant/gosh v0.2.4 h1:kWy3gO00rXnX7Gi9k1jtIUKgzkreCNsJLfXzHKwENqw=
-github.com/viant/gosh v0.2.4/go.mod h1:KytU8mypZIFjjnIgrZAIFMpb0rGQWZmpCeg7kvsNbBY=
 github.com/viant/scy v0.27.0 h1:b5139O9zUmF3Zufa6Ho3ZpuYbnnjZO2ELH+XHZ7tlAM=
 github.com/viant/scy v0.27.0/go.mod h1:7uNRS67X45YN+JqTLCcMEhehffVjqrejULEDln9p0Ao=
 github.com/viant/toolbox v0.34.5/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
