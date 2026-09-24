@@ -8,7 +8,7 @@ require (
 	github.com/eberle1080/mcp-protocol v0.0.0-20260924022050-9e54c1ef6ac5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/jessevdk/go-flags v1.5.0
+	github.com/jessevdk/go-flags v1.6.1
 	github.com/stretchr/testify v1.11.1
 	github.com/viant/afs v1.30.0
 	github.com/viant/scy v0.27.0
