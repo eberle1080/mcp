@@ -1,6 +1,6 @@
 module github.com/eberle1080/mcp
 
-go 1.25.1
+go 1.26.0
 
 require (
 	github.com/eberle1080/gosh v0.0.0-20260924024703-d461f5d2defc
@@ -12,7 +12,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/viant/afs v1.30.0
 	github.com/viant/scy v0.27.0
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
