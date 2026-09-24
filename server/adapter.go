@@ -3,14 +3,89 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"github.com/eberle1080/mcp/client"
+	"sync/atomic"
+
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/eberle1080/mcp/client"
 )
 
 // Adapter adapts a handler Handler to implement the client.Interface
 type Adapter struct {
-	handler *Handler
+	handler       *Handler
+	nextRequestID uint64
+}
+
+func decodeAdapterResult(raw json.RawMessage, destination interface{}) error {
+	var object map[string]interface{}
+	if len(raw) > 0 && json.Unmarshal(raw, &object) == nil && object != nil {
+		if value, ok := object["resultType"]; !ok || value == "" {
+			object["resultType"] = completeResultType
+		}
+		if value, ok := object["cacheScope"]; !ok || value == "" {
+			object["cacheScope"] = "private"
+		}
+		if _, ok := object["ttlMs"]; !ok {
+			object["ttlMs"] = 0
+		}
+		if normalized, err := json.Marshal(object); err == nil {
+			raw = normalized
+		}
+	}
+	return json.Unmarshal(raw, destination)
+}
+
+// Discover exposes the July stateless discovery operation for in-process
+// clients.
+func (a *Adapter) Discover(ctx context.Context, options ...client.RequestOption) (*schema.DiscoverResult, error) {
+	req, err := jsonrpc.NewRequest(schema.MethodServerDiscover, map[string]interface{}{
+		"_meta": map[string]interface{}{
+			"io.modelcontextprotocol/clientCapabilities": map[string]interface{}{},
+			"io.modelcontextprotocol/protocolVersion":    schema.LatestProtocolVersion,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if ro := client.NewRequestOptions(options); ro != nil && ro.RequestId != nil {
+		req.Id = ro.RequestId
+	}
+	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
+	a.handler.Serve(ctx, req, response)
+	if response.Error != nil {
+		return nil, response.Error
+	}
+	var result schema.DiscoverResult
+	if err = decodeAdapterResult(response.Result, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ensureRequestID owns sequencing for in-process MCP calls, which do not pass
+// through a JSON-RPC transport. Explicit IDs are preserved and observed so a
+// later automatic ID cannot reuse the same value.
+func (a *Adapter) ensureRequestID(req *jsonrpc.Request) {
+	if req.Id != nil {
+		if id, ok := jsonrpc.AsRequestIntId(req.Id); ok && id > 0 {
+			a.observeRequestID(uint64(id))
+		}
+		return
+	}
+	req.Id = atomic.AddUint64(&a.nextRequestID, 1)
+}
+
+func (a *Adapter) observeRequestID(id uint64) {
+	for {
+		current := atomic.LoadUint64(&a.nextRequestID)
+		if current >= id {
+			return
+		}
+		if atomic.CompareAndSwapUint64(&a.nextRequestID, current, id) {
+			return
+		}
+	}
 }
 
 // injectAuthMeta ensures request params carry _meta.authorization.token for server-side auth interceptors.
@@ -62,12 +137,13 @@ func (a *Adapter) ListRoots(ctx context.Context, params *schema.ListRootsRequest
 		}
 	}
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 	if response.Error != nil {
 		return nil, response.Error
 	}
 	var result schema.ListRootsResult
-	if err = json.Unmarshal(response.Result, &result); err != nil {
+	if err = decodeAdapterResult(response.Result, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -88,12 +164,13 @@ func (a *Adapter) CreateMessage(ctx context.Context, params *schema.CreateMessag
 		}
 	}
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 	if response.Error != nil {
 		return nil, response.Error
 	}
 	var result schema.CreateMessageResult
-	if err = json.Unmarshal(response.Result, &result); err != nil {
+	if err = decodeAdapterResult(response.Result, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -119,12 +196,13 @@ func (a *Adapter) Elicit(ctx context.Context, params *schema.ElicitRequestParams
 		}
 	}
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 	if response.Error != nil {
 		return nil, response.Error
 	}
 	var result schema.ElicitResult
-	if err = json.Unmarshal(response.Result, &result); err != nil {
+	if err = decodeAdapterResult(response.Result, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -132,7 +210,11 @@ func (a *Adapter) Elicit(ctx context.Context, params *schema.ElicitRequestParams
 
 // Initialize initializes the client
 func (a *Adapter) Initialize(ctx context.Context, options ...client.RequestOption) (*schema.InitializeResult, error) {
-	params := &schema.InitializeRequestParams{}
+	params := &schema.InitializeRequestParams{
+		Capabilities:    schema.ClientCapabilities{},
+		ClientInfo:      schema.Implementation{Name: "in-process-client", Version: "1"},
+		ProtocolVersion: schema.LegacyProtocolVersion,
+	}
 	req, err := jsonrpc.NewRequest(schema.MethodInitialize, params)
 	if err != nil {
 		return nil, err
@@ -147,6 +229,7 @@ func (a *Adapter) Initialize(ctx context.Context, options ...client.RequestOptio
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -154,7 +237,7 @@ func (a *Adapter) Initialize(ctx context.Context, options ...client.RequestOptio
 	}
 
 	var result schema.InitializeResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +265,7 @@ func (a *Adapter) ListResourceTemplates(ctx context.Context, cursor *string, opt
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -189,7 +273,7 @@ func (a *Adapter) ListResourceTemplates(ctx context.Context, cursor *string, opt
 	}
 
 	var result schema.ListResourceTemplatesResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +298,7 @@ func (a *Adapter) ListResources(ctx context.Context, cursor *string, options ...
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -221,7 +306,7 @@ func (a *Adapter) ListResources(ctx context.Context, cursor *string, options ...
 	}
 
 	var result schema.ListResourcesResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +331,7 @@ func (a *Adapter) ListPrompts(ctx context.Context, cursor *string, options ...cl
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -253,7 +339,7 @@ func (a *Adapter) ListPrompts(ctx context.Context, cursor *string, options ...cl
 	}
 
 	var result schema.ListPromptsResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -278,6 +364,7 @@ func (a *Adapter) ListTools(ctx context.Context, cursor *string, options ...clie
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -285,7 +372,7 @@ func (a *Adapter) ListTools(ctx context.Context, cursor *string, options ...clie
 	}
 
 	var result schema.ListToolsResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +396,7 @@ func (a *Adapter) ReadResource(ctx context.Context, params *schema.ReadResourceR
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -316,7 +404,7 @@ func (a *Adapter) ReadResource(ctx context.Context, params *schema.ReadResourceR
 	}
 
 	var result schema.ReadResourceResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +423,7 @@ func (a *Adapter) GetPrompt(ctx context.Context, params *schema.GetPromptRequest
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -342,7 +431,7 @@ func (a *Adapter) GetPrompt(ctx context.Context, params *schema.GetPromptRequest
 	}
 
 	var result schema.GetPromptResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -361,6 +450,7 @@ func (a *Adapter) CallTool(ctx context.Context, params *schema.CallToolRequestPa
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -368,7 +458,7 @@ func (a *Adapter) CallTool(ctx context.Context, params *schema.CallToolRequestPa
 	}
 
 	var result schema.CallToolResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -387,6 +477,7 @@ func (a *Adapter) Complete(ctx context.Context, params *schema.CompleteRequestPa
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -394,7 +485,7 @@ func (a *Adapter) Complete(ctx context.Context, params *schema.CompleteRequestPa
 	}
 
 	var result schema.CompleteResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -413,6 +504,7 @@ func (a *Adapter) Ping(ctx context.Context, params *schema.PingRequestParams, op
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -420,7 +512,7 @@ func (a *Adapter) Ping(ctx context.Context, params *schema.PingRequestParams, op
 	}
 
 	var result schema.PingResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -439,13 +531,14 @@ func (a *Adapter) Subscribe(ctx context.Context, params *schema.SubscribeRequest
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
 		return nil, response.Error
 	}
 	var result schema.SubscribeResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -463,6 +556,7 @@ func (a *Adapter) Unsubscribe(ctx context.Context, params *schema.UnsubscribeReq
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -470,7 +564,7 @@ func (a *Adapter) Unsubscribe(ctx context.Context, params *schema.UnsubscribeReq
 	}
 
 	var result schema.UnsubscribeResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -489,6 +583,7 @@ func (a *Adapter) SetLevel(ctx context.Context, params *schema.SetLevelRequestPa
 	}
 
 	response := &jsonrpc.Response{}
+	a.ensureRequestID(req)
 	a.handler.Serve(ctx, req, response)
 
 	if response.Error != nil {
@@ -496,7 +591,7 @@ func (a *Adapter) SetLevel(ctx context.Context, params *schema.SetLevelRequestPa
 	}
 
 	var result schema.SetLevelResult
-	err = json.Unmarshal(response.Result, &result)
+	err = decodeAdapterResult(response.Result, &result)
 	if err != nil {
 		return nil, err
 	}

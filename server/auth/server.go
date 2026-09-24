@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eberle1080/mcp/client/auth/transport"
 	"github.com/eberle1080/jsonrpc"
 	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 	"github.com/eberle1080/jsonrpc/transport/server/http/session"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/syncmap"
+	"github.com/eberle1080/mcp/client/auth/transport"
 	"github.com/viant/scy/auth"
 	"golang.org/x/oauth2"
 )
@@ -85,16 +85,37 @@ func (s *Service) extractJSONRPCRequest(r *http.Request) ([]byte, *jsonrpc.Reque
 }
 
 func (s *Service) resolveAuthorizationRule(jRequest *jsonrpc.Request) (*authorization.Authorization, string) {
+	if !s.RequireResourceAuthorization && (jRequest.Method == schema.MethodResourcesList || jRequest.Method == schema.MethodResourcesTemplatesList) {
+		return nil, ""
+	}
 	switch jRequest.Method {
+	case schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesList, schema.MethodResourcesTemplatesList:
+		rules := s.resourceRules(jRequest)
+		if len(rules) == 0 {
+			return nil, ""
+		}
+		for uri, rule := range s.Policy.Resources {
+			if rule == rules[0] {
+				return rule, uri
+			}
+		}
+		return rules[0], ""
 	case schema.MethodResourcesRead:
-		params := &schema.ReadResourceRequestParams{}
+		// Authorization needs only the resource identity. Decoding the complete
+		// versioned request schema here would make unrelated metadata requirements
+		// bypass per-resource rules for otherwise valid older protocol requests.
+		params := &struct {
+			Uri string `json:"uri"`
+		}{}
 		if err := json.Unmarshal(jRequest.Params, params); err == nil {
 			if rule, ok := s.Policy.Resources[params.Uri]; ok {
 				return rule, params.Uri
 			}
 		}
 	case schema.MethodToolsCall:
-		params := &schema.CallToolRequestParams{}
+		params := &struct {
+			Name string `json:"name"`
+		}{}
 		if err := json.Unmarshal(jRequest.Params, params); err == nil {
 			if rule, ok := s.Policy.Tools[params.Name]; ok {
 				return rule, "tool/" + params.Name
@@ -130,7 +151,7 @@ func (s *Service) handleAuthorization(w http.ResponseWriter, r *http.Request, ne
 	}
 	resourceQuery := ""
 	if resourceURI != "" {
-		resourceQuery = fmt.Sprintf("?resource=%s", resourceURI)
+		resourceQuery = "?resource=" + url.QueryEscape(resourceURI)
 	}
 	proto, host := extractProtoAndHost(r)
 	metaURL := fmt.Sprintf("%s://%s/.well-known/oauth-protected-resource%s", proto, host, resourceQuery)
@@ -148,7 +169,7 @@ func (s *Service) handleAuthorization(w http.ResponseWriter, r *http.Request, ne
 	}
 
 	w.Header().Set("MCP-Protocol-Version", schema.LatestProtocolVersion)
-	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer resource_metadata="%s%s%s"`, metaURL, scopeFragment, btfFragment))
+	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer resource_metadata="%s"%s%s`, metaURL, scopeFragment, btfFragment))
 	w.WriteHeader(statusCode)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -241,9 +262,6 @@ func (s *Service) ProtectedResourcesHandler(w http.ResponseWriter, request *http
 	policyRule := s.Policy.Global
 
 	if resource != "" {
-		if unescaped, err := url.QueryUnescape(resource); err == nil {
-			resource = unescaped
-		}
 		if strings.HasPrefix(resource, "tool/") {
 			if rule, ok := s.Policy.Tools[strings.TrimPrefix(resource, "tool/")]; ok && rule.ProtectedResourceMetadata != nil {
 				policyRule = rule
@@ -252,13 +270,13 @@ func (s *Service) ProtectedResourcesHandler(w http.ResponseWriter, request *http
 			policyRule = rule
 		}
 	}
-	metadata := policyRule.ProtectedResourceMetadata
-	if metadata == nil {
-		metadata = s.Policy.Global.ProtectedResourceMetadata
+	if policyRule == nil || policyRule.ProtectedResourceMetadata == nil {
+		http.NotFound(w, request)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(metadata)
+	_ = json.NewEncoder(w).Encode(policyRule.ProtectedResourceMetadata)
 }
 
 func New(config *Config) (*Service, error) {

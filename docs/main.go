@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/eberle1080/mcp/server"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 	proto "github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp/server"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 				return &schema.CallToolResult{
 					StructuredContent: structured,
 					Content: []schema.CallToolResultContentElem{
-						{Text: string(data), Type: "text"}},
+						schema.TextContent{Text: string(data), Type: "text"}},
 				}, nil
 			},
 		)

@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/eberle1080/mcp/internal/conv"
-	"github.com/eberle1080/mcp/server/auth"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
 	authschema "github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp/internal/conv"
+	"github.com/eberle1080/mcp/server/auth"
 )
 
 // Handler represents handler
@@ -19,17 +19,26 @@ type Handler struct {
 	transport.Notifier
 	*Logger
 	*Server
-	clientInitialize *schema.InitializeRequestParams
-	loggingLevel     schema.LoggingLevel
-	handler          server.Handler
-	authorizer       auth.JRPCAuthorizer //note that http level authorized is implemented as middleware
-	clientFeatures   map[string]bool
-	Initialized      bool
-	err              error
+	clientInitialize   *schema.InitializeRequestParams
+	loggingLevel       schema.LoggingLevel
+	handler            server.Handler
+	authorizer         auth.JRPCAuthorizer //note that http level authorized is implemented as middleware
+	clientFeatures     map[string]bool
+	toolProtocolErrors bool
+	Initialized        bool
+	err                error
 }
 
 // Serve handles incoming JSON-RPC requests
 func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, response *jsonrpc.Response) {
+	if h.requestContext != nil {
+		prepared, err := h.requestContext(parent)
+		if err != nil || prepared == nil {
+			response.Error = jsonrpc.NewInternalError("request context preparation failed", nil)
+			return
+		}
+		parent = prepared
+	}
 	// Check for valid JSONRPC version
 	if jsonrpc.Version != request.Jsonrpc {
 		response.Error = jsonrpc.NewInvalidRequest("invalid JSON-RPC version", nil)
@@ -43,11 +52,29 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 		response.Error = jsonrpc.NewInternalError("handler not initialized", nil)
 		return
 	}
+	parent, protocolVersion, protocolErr := h.prepareProtocolRequest(parent, request)
+	if protocolErr != nil {
+		response.Error = protocolErr
+		return
+	}
+	if protocolVersion == schema.LatestProtocolVersion {
+		switch request.Method {
+		case schema.MethodSubscribe, schema.MethodUnsubscribe, schema.MethodLoggingSetLevel:
+			response.Error = jsonrpc.NewMethodNotFound(fmt.Sprintf("method %s was removed in %s", request.Method, schema.LatestProtocolVersion), request.Params)
+			return
+		}
+	}
 	switch request.Method {
-	case schema.MethodInitialize, schema.MethodPing:
+	case schema.MethodInitialize, schema.MethodServerDiscover, schema.MethodSubscriptionsListen, schema.MethodPing:
 	case schema.MethodLoggingSetLevel:
 	default:
-		if !h.handler.Implements(request.Method) {
+		implemented := h.handler.Implements(request.Method)
+		if contextual, ok := h.handler.(interface {
+			ImplementsContext(context.Context, string) bool
+		}); ok {
+			implemented = contextual.ImplementsContext(parent, request.Method)
+		}
+		if !implemented {
 			response.Error = jsonrpc.NewMethodNotFound(fmt.Sprintf("method: %v not found", request.Method), request.Params)
 			return
 		}
@@ -78,32 +105,44 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 	switch request.Method {
 	case schema.MethodInitialize:
 		result, err := h.Initialize(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
+	case schema.MethodServerDiscover:
+		result, err := h.Discover(ctx)
+		h.setResponse(protocolVersion, response, result, err)
+	case schema.MethodSubscriptionsListen:
+		result, err := h.Listen(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodPing:
 		result, err := h.Ping(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodResourcesList:
 		result, err := h.ListResources(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
+	case schema.MethodSkillsList:
+		result, err := h.ListSkills(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
+	case schema.MethodSkillsGet:
+		result, err := h.GetSkill(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodResourcesTemplatesList:
 		result, err := h.ListResourceTemplates(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodResourcesRead:
 		result, err := h.ReadResource(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodPromptsList:
 		result, err := h.ListPrompts(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodPromptsGet:
 		result, err := h.GetPrompt(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodToolsList:
 		result, err := h.ListTools(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodToolsCall:
 		result, err := h.CallTool(ctx, request)
 		// For tool call errors, return a CallToolResult with isError flag instead of JSON-RPC error
-		if err != nil {
+		if err != nil && !h.toolProtocolErrors {
 			isErr := true
 			msg := err.Message
 			structured := map[string]interface{}{
@@ -118,33 +157,34 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 				IsError:           &isErr,
 				StructuredContent: structured,
 				Content: []schema.CallToolResultContentElem{
-					{Type: "text", Text: msg},
+					schema.TextContent{Text: msg, Type: "text"},
 				},
 			}
 			err = nil
 		}
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodComplete:
 		result, err := h.Complete(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodSubscribe:
 		result, err := h.Subscribe(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodUnsubscribe:
 		result, err := h.Unsubscribe(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodLoggingSetLevel:
 		result, err := h.SetLevel(ctx, request)
-		h.setResponse(response, result, err)
+		h.setResponse(protocolVersion, response, result, err)
 	default:
 		response.Error = jsonrpc.NewMethodNotFound(fmt.Sprintf("method: %v not found", request.Method), request.Params)
 	}
 }
 
-func (h *Handler) setResponse(response *jsonrpc.Response, result interface{}, rpcError *jsonrpc.Error) {
+func (h *Handler) setResponse(protocolVersion string, response *jsonrpc.Response, result interface{}, rpcError *jsonrpc.Error) {
 	if rpcError != nil {
 		response.Error = rpcError
 	}
+	h.finalizeResult(protocolVersion, result)
 	var err error
 	response.Result, err = json.Marshal(result)
 	if err != nil {

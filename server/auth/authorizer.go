@@ -25,6 +25,13 @@ func (s *Service) EnsureAuthorized(ctx context.Context, request *jsonrpc.Request
 	}
 
 	var token string
+	credential := p.AuthMeta.Authorization
+	if value, ok := ctx.Value(authorization.TokenKey).(*authorization.Token); ok {
+		credential = value
+	}
+	if s.authorizeResources(ctx, request, response, credential) {
+		return credential, nil
+	}
 	if value := ctx.Value(authorization.TokenKey); value != nil {
 		if _, ok := value.(*authorization.Token); ok { //token is already in context
 			return nil, nil
@@ -48,13 +55,19 @@ func (s *Service) EnsureAuthorized(ctx context.Context, request *jsonrpc.Request
 		}
 		s.unauthorized(response, s.Policy.Tools[p.Name])
 	case schema.MethodResourcesRead:
+		params := &struct {
+			Uri string `json:"uri"`
+		}{}
+		if !schema.MustParseParams(request, response, params) {
+			return nil, nil
+		}
 		if s.Policy.Resources == nil {
 			if s.Policy.Global != nil { //each request is protected
 				s.unauthorized(response, s.Policy.Global)
 			}
 			return nil, nil
 		}
-		s.unauthorized(response, s.Policy.Resources[p.Name])
+		s.unauthorized(response, s.Policy.Resources[params.Uri])
 	}
 	return nil, nil
 }
