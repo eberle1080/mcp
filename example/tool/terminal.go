@@ -8,7 +8,7 @@ import (
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/schema"
-	"github.com/viant/gosh"
+	"github.com/eberle1080/gosh"
 )
 
 type TerminalCommand struct {

@@ -15,8 +15,8 @@ import (
 	"github.com/eberle1080/mcp/example/tool"
 	"github.com/eberle1080/mcp/server/auth"
 	"github.com/stretchr/testify/assert"
-	"github.com/viant/gosh"
-	"github.com/viant/gosh/runner/local"
+	"github.com/eberle1080/gosh"
+	"github.com/eberle1080/gosh/runner/local"
 
 	"github.com/eberle1080/mcp-protocol/schema"
 

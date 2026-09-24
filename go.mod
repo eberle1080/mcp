@@ -3,14 +3,14 @@ module github.com/eberle1080/mcp
 go 1.25.1
 
 require (
-	github.com/eberle1080/jsonrpc v0.0.0-20260923232424-f2e7106581ea
+	github.com/eberle1080/gosh v0.0.0-20260924024703-d461f5d2defc
+	github.com/eberle1080/jsonrpc v0.0.0-20260924024814-22862564dc34
 	github.com/eberle1080/mcp-protocol v0.0.0-20260924022050-9e54c1ef6ac5
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/stretchr/testify v1.11.1
 	github.com/viant/afs v1.30.0
-	github.com/viant/gosh v0.2.4
 	github.com/viant/scy v0.27.0
 	golang.org/x/oauth2 v0.34.0
 )
