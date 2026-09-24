@@ -3,6 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
+	"github.com/eberle1080/jsonrpc/transport/server/http/sse"
+	"github.com/eberle1080/jsonrpc/transport/server/http/streamable"
+	"github.com/eberle1080/mcp-protocol/schema"
+	mcpauth "github.com/eberle1080/mcp/server/auth"
 	"net/http"
 	"os"
 	"strings"
@@ -10,10 +15,6 @@ import (
 	"time"
 
 	"github.com/eberle1080/jsonrpc/transport/server/base"
-	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
-	"github.com/eberle1080/jsonrpc/transport/server/http/sse"
-	"github.com/eberle1080/jsonrpc/transport/server/http/streamable"
-	mcpauth "github.com/eberle1080/mcp/server/auth"
 )
 
 type httpServer struct {
@@ -70,6 +71,7 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 	sseOptions := []sse.Option{
 		sse.WithURI(s.sseURI),
 		sse.WithMessageURI(s.sseMessageURI),
+		sse.WithKeepAliveInterval(2 * time.Second),
 		// Enable auth cookie and rehydrate from it
 		sse.WithAuthStore(memAuth),
 		sse.WithBFFAuthCookie(&sse.BFFAuthCookie{Name: "BFF-Auth-Session", HttpOnly: true}),
@@ -77,6 +79,10 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 	}
 	streamableOptions := []streamable.Option{
 		streamable.WithURI(s.streamableURI),
+		streamable.WithKeepAliveInterval(2 * time.Second),
+		streamable.WithStatelessResolver(func(request *http.Request) bool {
+			return strings.TrimSpace(request.Header.Get(schema.HeaderProtocolVersion)) == schema.LatestProtocolVersion
+		}),
 		// Enable auth cookie and rehydrate from it
 		streamable.WithAuthStore(memAuth),
 		streamable.WithBFFAuthCookie(&streamable.BFFAuthCookie{Name: "BFF-Auth-Session", HttpOnly: true}),

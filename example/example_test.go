@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/eberle1080/mcp/server"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 	serverproto "github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp/server"
 )
 
 func Usage_Example() {
@@ -37,7 +37,9 @@ func Usage_Example() {
 			if err != nil {
 				return nil, jsonrpc.NewInternalError(fmt.Sprintf("failed to marshal result: %v", err), nil)
 			}
-			return &schema.CallToolResult{Content: []schema.CallToolResultContentElem{{Text: string(data)}}}, nil
+			return &schema.CallToolResult{Content: []schema.CallToolResultContentElem{
+				schema.TextContent{Text: string(data), Type: "text"},
+			}}, nil
 		}); err != nil {
 			return err
 		}

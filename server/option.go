@@ -1,13 +1,23 @@
 package server
 
 import (
+	"context"
+	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp/server/auth"
 	"net/http"
 
 	"github.com/eberle1080/jsonrpc/transport/server/base"
-	"github.com/eberle1080/mcp/server/auth"
-	"github.com/eberle1080/mcp-protocol/schema"
-	"github.com/eberle1080/mcp-protocol/server"
 )
+
+// WithRequestContext prepares an invocation context before method lookup,
+// authorization and dispatch. It applies to every transport, including stdio.
+func WithRequestContext(prepare func(context.Context) (context.Context, error)) Option {
+	return func(s *Server) error {
+		s.requestContext = prepare
+		return nil
+	}
+}
 
 // Option is a function that configures the handler.
 type Option func(s *Server) error
@@ -16,7 +26,15 @@ type Option func(s *Server) error
 func WithInstructions(instructions string) Option {
 	return func(s *Server) error {
 		s.instructions = &instructions
+		return nil
+	}
+}
 
+// WithToolProtocolErrors preserves JSON-RPC errors returned by tools/call.
+// The default converts those errors into CallToolResult values for compatibility.
+func WithToolProtocolErrors() Option {
+	return func(s *Server) error {
+		s.toolProtocolErrors = true
 		return nil
 	}
 }

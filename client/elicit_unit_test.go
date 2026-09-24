@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
 	pclient "github.com/eberle1080/mcp-protocol/client"
 	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/stretchr/testify/require"
 )
 
 // --- Unit tests for client-side Elicit handling (no network) ---
@@ -40,7 +40,7 @@ func TestHandler_Elicit_Dispatch(t *testing.T) {
 	reqParams := schema.ElicitRequestParams{
 		ElicitationId: "e1",
 		Message:       "msg",
-		Mode:          string(schema.ElicitRequestParamsModeForm),
+		Mode:          schema.ElicitRequestParamsModeForm,
 		RequestedSchema: schema.ElicitRequestParamsRequestedSchema{
 			Type:       "object",
 			Properties: map[string]any{"k": map[string]any{"type": "string"}},

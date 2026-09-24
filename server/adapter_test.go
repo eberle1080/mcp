@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"github.com/eberle1080/mcp/client"
-	"github.com/stretchr/testify/assert"
 	"github.com/eberle1080/mcp-protocol/schema"
 	serverproto "github.com/eberle1080/mcp-protocol/server"
+	"github.com/eberle1080/mcp/client"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -29,6 +29,9 @@ func TestServerAsClient(t *testing.T) {
 	clientInterface := srv.AsClient(ctx)
 	assert.NotNil(t, clientInterface)
 	assert.Implements(t, (*client.Interface)(nil), clientInterface)
+	discovery, err := clientInterface.(client.DiscoveryInterface).Discover(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, schema.LatestProtocolVersion, discovery.SupportedVersions[0])
 
 	// Initialize the client
 	result, err := clientInterface.Initialize(ctx)

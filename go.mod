@@ -3,8 +3,8 @@ module github.com/eberle1080/mcp
 go 1.25.1
 
 require (
-	github.com/eberle1080/jsonrpc v0.0.0-20260128005140-00c6f4b1b5c1
-	github.com/eberle1080/mcp-protocol v0.0.0-20260128040518-5dfb09d0111d
+	github.com/eberle1080/jsonrpc v0.0.0-20260923232424-f2e7106581ea
+	github.com/eberle1080/mcp-protocol v0.0.0-20260924020453-8fd63b89d97d
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.5.0
@@ -19,6 +19,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
+	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/viant/toolbox v0.39.0 // indirect

@@ -3,12 +3,12 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/eberle1080/mcp/client"
-	"github.com/eberle1080/mcp/server/auth"
 	"github.com/eberle1080/jsonrpc/transport"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp-protocol/syncmap"
+	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/server/auth"
 	"net/http"
 )
 
@@ -20,11 +20,13 @@ type Server struct {
 	instructions              *string
 	protocolVersion           string
 	loggerName                string
+	toolProtocolErrors        bool
 	protectedResourcesHandler http.HandlerFunc
 	corsHandler               func(next http.Handler) http.Handler
 	corsConfig                *Cors
 	authorizer                func(next http.Handler) http.Handler
 	jRPCAuthorizer            auth.JRPCAuthorizer
+	requestContext            func(context.Context) (context.Context, error)
 	stdioServer
 	httpServer
 }
@@ -44,10 +46,11 @@ func (s *Server) NewHandler(ctx context.Context, transport transport.Transport) 
 
 func (s *Server) newHandler(ctx context.Context, transport transport.Transport) *Handler {
 	ret := &Handler{
-		Server:         s,
-		Notifier:       transport,
-		authorizer:     s.jRPCAuthorizer,
-		clientFeatures: make(map[string]bool),
+		Server:             s,
+		Notifier:           transport,
+		authorizer:         s.jRPCAuthorizer,
+		clientFeatures:     make(map[string]bool),
+		toolProtocolErrors: s.toolProtocolErrors,
 	}
 	ret.Logger = NewLogger(ret.loggerName, &ret.loggingLevel, ret.Notifier)
 
