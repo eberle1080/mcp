@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/stretchr/testify v1.11.1
-	github.com/viant/afs v1.30.0
+	github.com/viant/afs v1.30.1
 	github.com/viant/scy v0.35.0
 	golang.org/x/oauth2 v0.37.0
 )
