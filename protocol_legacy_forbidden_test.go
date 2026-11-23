@@ -80,6 +80,11 @@ func TestAutomaticHTTPNegotiatesBeforeSendingVersionHeader(t *testing.T) {
 				case schema.MethodInitialize:
 					result = map[string]any{"protocolVersion": selected, "capabilities": map[string]any{}, "serverInfo": map[string]any{"name": "example-peer", "version": "1"}}
 				case schema.MethodToolsList:
+					if requestBodyProtocolVersion(request.Method, request.Params) != selected {
+						w.WriteHeader(http.StatusBadRequest)
+						_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": request.ID, "error": map[string]any{"code": -32020, "message": "header and body protocol versions disagree"}})
+						return
+					}
 					result = map[string]any{"tools": []any{}}
 				default:
 					t.Errorf("unexpected method %s", request.Method)
@@ -277,6 +282,6 @@ func TestAutomaticHTTPReconnectKeepsNegotiatedVersionAndAuthTransport(t *testing
 		{method: schema.MethodNotificationInitialized, header: schema.LegacyProtocolVersion},
 		{method: schema.MethodInitialize, bodyVersion: schema.LegacyProtocolVersion},
 		{method: schema.MethodNotificationInitialized, header: schema.LegacyProtocolVersion},
-		{method: schema.MethodToolsList, header: schema.LegacyProtocolVersion},
+		{method: schema.MethodToolsList, header: schema.LegacyProtocolVersion, bodyVersion: schema.LegacyProtocolVersion},
 	})
 }

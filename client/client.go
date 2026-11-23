@@ -12,8 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"github.com/viant/jsonrpc"
 	"github.com/viant/jsonrpc/transport"
+	streamabletransport "github.com/viant/jsonrpc/transport/client/http/streamable"
 	stdiotransport "github.com/viant/jsonrpc/transport/client/stdio"
 	pclient "github.com/viant/mcp-protocol/client"
 	"github.com/viant/mcp-protocol/schema"
@@ -124,7 +127,7 @@ func (c *Client) Initialize(ctx context.Context, options ...RequestOption) (*sch
 	}
 	// HTTP construction supplies a negotiation owner so the server-selected
 	// version is validated and installed before initialized or subsequent GETs.
-	if negotiator, ok := currentTransport.(interface{ NegotiateProtocolVersion(string) error }); ok {
+	if negotiator, ok := currentTransport.(protocolNegotiator); ok {
 		c.stateMu.Lock()
 		changed := c.negotiated != nil && c.protocolVersion != result.ProtocolVersion
 		c.stateMu.Unlock()
@@ -477,6 +480,10 @@ func (c *Client) Elicit(ctx context.Context, params *schema.ElicitRequestParams,
 	return send[schema.ElicitRequestParams, schema.ElicitResult](ctx, c, methodElicit, params, options...)
 }
 
+type protocolNegotiator interface {
+	NegotiateProtocolVersion(string) error
+}
+
 type versioner interface {
 	ProtocolVersion() string
 }
@@ -677,10 +684,27 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 	return &result, nil
 }
 
-// withProtocolMeta adds the stateless July request metadata without requiring
-// every caller to construct the generated request parameter structs manually.
+// withProtocolMeta keeps generated request metadata consistent with the wire version.
 func (c *Client) withProtocolMeta(req *jsonrpc.Request) {
-	if c.protocolVersion != schema.LatestProtocolVersion || req == nil {
+	if req == nil {
+		return
+	}
+	c.stateMu.RLock()
+	version, activeTransport := c.protocolVersion, c.transport
+	c.stateMu.RUnlock()
+	if version != schema.LatestProtocolVersion {
+		// Current schema types serialize a required version field even on a legacy
+		// connection. Fill that field without re-encoding opaque params or adding
+		// July-only metadata to legacy messages that never carried it.
+		switch activeTransport.(type) {
+		case protocolNegotiator, *streamabletransport.Client:
+			const path = `_meta.io\.modelcontextprotocol/protocolVersion`
+			if current := gjson.GetBytes(req.Params, path); current.Exists() && current.String() != version {
+				if updated, err := sjson.SetBytes(req.Params, path, version); err == nil {
+					req.Params = updated
+				}
+			}
+		}
 		return
 	}
 	var params map[string]json.RawMessage
@@ -709,7 +733,7 @@ func (c *Client) withProtocolMeta(req *jsonrpc.Request) {
 	}
 	meta["io.modelcontextprotocol/clientCapabilities"] = c.capabilities
 	meta["io.modelcontextprotocol/clientInfo"] = c.info
-	meta["io.modelcontextprotocol/protocolVersion"] = c.protocolVersion
+	meta["io.modelcontextprotocol/protocolVersion"] = version
 	c.stateMu.RLock()
 	loggingLevel := c.loggingLevel
 	c.stateMu.RUnlock()
