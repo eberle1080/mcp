@@ -42,7 +42,7 @@ require (
 	github.com/viant/tagly v0.4.2-0.20261114220424-b7354b0404e2 // indirect
 	github.com/viant/toolbox v0.39.0 // indirect
 	github.com/viant/x v0.6.1-0.20261106041415-0487ec66884b // indirect
-	github.com/viant/xunsafe v0.11.0 // indirect
+	github.com/viant/xunsafe v0.11.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/mod v0.32.0 // indirect
