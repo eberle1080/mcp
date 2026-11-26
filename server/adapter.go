@@ -3,36 +3,20 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"sync/atomic"
 
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp/client"
+	"github.com/eberle1080/mcp/internal/conv"
 )
 
 // Adapter adapts a handler Handler to implement the client.Interface
 type Adapter struct {
 	handler       *Handler
 	nextRequestID uint64
-}
-
-func decodeAdapterResult(raw json.RawMessage, destination interface{}) error {
-	var object map[string]interface{}
-	if len(raw) > 0 && json.Unmarshal(raw, &object) == nil && object != nil {
-		if value, ok := object["resultType"]; !ok || value == "" {
-			object["resultType"] = completeResultType
-		}
-		if value, ok := object["cacheScope"]; !ok || value == "" {
-			object["cacheScope"] = "private"
-		}
-		if _, ok := object["ttlMs"]; !ok {
-			object["ttlMs"] = 0
-		}
-		if normalized, err := json.Marshal(object); err == nil {
-			raw = normalized
-		}
-	}
-	return json.Unmarshal(raw, destination)
 }
 
 // Discover exposes the July stateless discovery operation for in-process
@@ -93,19 +77,17 @@ func injectAuthMeta(req *jsonrpc.Request, token string) {
 	if token == "" {
 		return
 	}
-	var params map[string]interface{}
+	var params map[string]json.RawMessage
 	if len(req.Params) > 0 && string(req.Params) != "null" {
 		_ = json.Unmarshal(req.Params, &params)
 	}
 	if params == nil {
-		params = map[string]interface{}{}
+		params = map[string]json.RawMessage{}
 	}
 	var meta map[string]interface{}
-	if v, ok := params["_meta"].(map[string]interface{}); ok {
-		meta = v
-	} else {
+	_ = json.Unmarshal(params["_meta"], &meta)
+	if meta == nil {
 		meta = map[string]interface{}{}
-		params["_meta"] = meta
 	}
 	var auth map[string]interface{}
 	if v, ok := meta["authorization"].(map[string]interface{}); ok {
@@ -115,9 +97,7 @@ func injectAuthMeta(req *jsonrpc.Request, token string) {
 		meta["authorization"] = auth
 	}
 	auth["token"] = token
-	if raw, err := json.Marshal(params); err == nil {
-		req.Params = raw
-	}
+	_ = conv.SetRequestMeta(req, params, meta)
 }
 
 // ---- New client operations ----
@@ -445,6 +425,17 @@ func (a *Adapter) CallTool(ctx context.Context, params *schema.CallToolRequestPa
 	if err != nil {
 		return nil, err
 	}
+	if params != nil {
+		for name, value := range params.Arguments {
+			if raw, ok := value.(json.RawMessage); ok && len(raw) > 0 {
+				req.Params, err = sjson.SetRawBytes(req.Params, "arguments."+gjson.Escape(name), raw)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
 	if ro := client.NewRequestOptions(options); ro != nil && ro.RequestId != nil {
 		req.Id = ro.RequestId
 	}

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"golang.org/x/oauth2"
 )
@@ -13,7 +14,11 @@ type Config struct {
 	AuthorizeResource            ResourceAuthorizer
 	Policy                       *authorization.Policy
 	BackendForFrontend           *BackendForFrontend
-	MediationMode                string //HTTP, JSONRPC
+	// BFFGrantStore supplies a store outside a listener-bound HTTP request.
+	// The HTTP transport's binding is authoritative when present; otherwise
+	// this explicit store, then legacy process defaults, remain in effect.
+	BFFGrantStore streamauth.Store
+	MediationMode string //HTTP, JSONRPC
 
 }
 

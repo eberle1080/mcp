@@ -4,17 +4,21 @@ import (
 	"context"
 	"errors"
 	"github.com/eberle1080/jsonrpc/transport"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp-protocol/syncmap"
 	"github.com/eberle1080/mcp/client"
 	"github.com/eberle1080/mcp/server/auth"
 	"net/http"
+	"sync"
 )
 
 // Server represents MCP protocol handler
 type Server struct {
+	maxRequestBodyBytes       int64
 	activeContexts            *syncmap.Map[int, *activeContext]
+	activeContextsMu          sync.Mutex
 	info                      schema.Implementation
 	newServer                 server.NewHandler
 	instructions              *string
@@ -26,14 +30,35 @@ type Server struct {
 	corsConfig                *Cors
 	authorizer                func(next http.Handler) http.Handler
 	jRPCAuthorizer            auth.JRPCAuthorizer
+	bffAuthStore              streamauth.Store
 	requestContext            func(context.Context) (context.Context, error)
+	onSessionClose            func(transport.Notifier)
 	stdioServer
 	httpServer
 }
 
 func (s *Server) CancelOperation(id int) {
+	s.activeContextsMu.Lock()
+	defer s.activeContextsMu.Unlock()
 	if active, ok := s.activeContexts.Get(id); ok {
 		active.CancelFunc()
+		s.activeContexts.Delete(id)
+	}
+}
+
+func (s *Server) registerOperation(id int, active *activeContext) {
+	s.activeContextsMu.Lock()
+	defer s.activeContextsMu.Unlock()
+	s.activeContexts.Put(id, active)
+}
+
+// Completion belongs to the request, even when another transport uses the same
+// numeric request ID. Never cancel or remove that other request's registration.
+func (s *Server) completeOperation(id int, active *activeContext) {
+	active.CancelFunc()
+	s.activeContextsMu.Lock()
+	defer s.activeContextsMu.Unlock()
+	if current, ok := s.activeContexts.Get(id); ok && current == active {
 		s.activeContexts.Delete(id)
 	}
 }
@@ -52,10 +77,14 @@ func (s *Server) newHandler(ctx context.Context, transport transport.Transport) 
 		clientFeatures:     make(map[string]bool),
 		toolProtocolErrors: s.toolProtocolErrors,
 	}
+	if transport != nil {
+		ret.subscriptions = &subscriptionNotifications{raw: transport}
+		ret.Notifier = ret.subscriptions
+	}
 	ret.Logger = NewLogger(ret.loggerName, &ret.loggingLevel, ret.Notifier)
 
 	aClient := NewClient(ret.clientFeatures, transport)
-	ret.handler, ret.err = s.newServer(ctx, transport, ret.Logger, aClient)
+	ret.handler, ret.err = s.newServer(ctx, ret.Notifier, ret.Logger, aClient)
 	return ret
 }
 

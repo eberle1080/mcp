@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
@@ -16,6 +17,8 @@ import (
 
 // Handler represents handler
 type Handler struct {
+	subscriptions *subscriptionNotifications
+	closeOnce     sync.Once
 	transport.Notifier
 	*Logger
 	*Server
@@ -27,6 +30,8 @@ type Handler struct {
 	toolProtocolErrors bool
 	Initialized        bool
 	err                error
+	operationsMu       sync.Mutex
+	operations         map[int]*activeContext
 }
 
 // Serve handles incoming JSON-RPC requests
@@ -57,6 +62,9 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 		response.Error = protocolErr
 		return
 	}
+	if h.subscriptions != nil {
+		h.subscriptions.setLatest(protocolVersion == schema.LatestProtocolVersion)
+	}
 	if protocolVersion == schema.LatestProtocolVersion {
 		switch request.Method {
 		case schema.MethodSubscribe, schema.MethodUnsubscribe, schema.MethodLoggingSetLevel:
@@ -83,6 +91,7 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 	id := conv.AsInt(request.Id)
 
 	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
 	activeContext, ctx := newActiveContext(ctx, cancel, request)
 
 	if h.authorizer != nil && request.Method != "" {
@@ -99,8 +108,8 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 		}
 	}
 
-	h.activeContexts.Put(id, activeContext)
-	defer h.CancelOperation(id)
+	h.registerOperation(id, activeContext)
+	defer h.completeOperation(id, activeContext)
 
 	switch request.Method {
 	case schema.MethodInitialize:
@@ -184,9 +193,26 @@ func (h *Handler) setResponse(protocolVersion string, response *jsonrpc.Response
 	if rpcError != nil {
 		response.Error = rpcError
 	}
+	// Legacy producers do not have cache metadata. Do not turn an absent
+	// tools/list hint into an explicit private zero-TTL policy on the wire.
+	// July responses still require their complete cache metadata contract.
+	legacyToolHints := false
+	if tools, ok := result.(*schema.ListToolsResult); ok && tools != nil && protocolVersion != schema.LatestProtocolVersion && tools.CacheScope == "" && tools.TtlMs == 0 {
+		detached := *tools
+		result = &detached
+		legacyToolHints = true
+	}
 	h.finalizeResult(protocolVersion, result)
 	var err error
 	response.Result, err = json.Marshal(result)
+	if err == nil && legacyToolHints {
+		var wire map[string]json.RawMessage
+		if err = json.Unmarshal(response.Result, &wire); err == nil {
+			delete(wire, "cacheScope")
+			delete(wire, "ttlMs")
+			response.Result, err = json.Marshal(wire)
+		}
+	}
 	if err != nil {
 		response.Error = jsonrpc.NewInternalError(err.Error(), []byte{})
 	}
@@ -205,4 +231,14 @@ func (h *Handler) OnNotification(ctx context.Context, notification *jsonrpc.Noti
 	if h.handler != nil {
 		h.handler.OnNotification(ctx, notification)
 	}
+}
+
+// Close ends this handler's owning transport session once. HTTP uses its native
+// final-session hook; in-process adapters may explicitly close their handler.
+func (h *Handler) Close() {
+	h.closeOnce.Do(func() {
+		if h.onSessionClose != nil {
+			h.onSessionClose(h.Notifier)
+		}
+	})
 }

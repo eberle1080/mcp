@@ -1,0 +1,69 @@
+package client
+
+import (
+	"context"
+	"encoding/json"
+	"github.com/stretchr/testify/require"
+	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/mcp-protocol/schema"
+	"github.com/eberle1080/mcp/internal/conv"
+	"testing"
+)
+
+func TestCallToolMetadataUsesLegacyNumericArguments(t *testing.T) {
+	for _, version := range []string{schema.LegacyProtocolVersion, schema.LatestProtocolVersion} {
+		for _, auth := range []string{"", "synthetic-token"} {
+			t.Run(version+auth, func(t *testing.T) {
+				calls := 0
+				tr := &mockTransport{send: func(_ context.Context, req *jsonrpc.Request) (*jsonrpc.Response, error) {
+					calls++
+					var wire struct {
+						Arguments map[string]interface{} `json:"arguments"`
+					}
+					require.NoError(t, conv.DecodeNumbers(req.Params, &wire))
+					require.Equal(t, float64(9007199254740992), wire.Arguments["id"])
+					require.Equal(t, float64(9007199254740996), wire.Arguments["nested"].([]interface{})[0].(map[string]interface{})["id"])
+					require.Equal(t, false, wire.Arguments["flag"])
+					require.Nil(t, wire.Arguments["null"])
+					return &jsonrpc.Response{Jsonrpc: jsonrpc.Version, Result: json.RawMessage(`{"content":[{"type":"text","text":"ok"}]}`)}, nil
+				}}
+				c := New("numeric", "1", tr, WithProtocolVersion(version))
+				c.initialized = true
+				_, err := c.CallTool(context.Background(), &schema.CallToolRequestParams{Name: "exact", Arguments: map[string]interface{}{"id": json.Number("9007199254740993"), "nested": []interface{}{map[string]interface{}{"id": json.Number("9007199254740995")}}, "flag": false, "null": nil}}, WithAuthToken(auth))
+				require.NoError(t, err)
+				require.Equal(t, 1, calls)
+			})
+		}
+	}
+}
+
+func TestNumericMetadataAdaptersDoNotRewriteDecodeErrors(t *testing.T) {
+	for _, raw := range []string{`{"name":"numeric","_meta":{"value":1e400}}`, `{"name":"numeric"} null`, `{"name":`} {
+		req := &jsonrpc.Request{Method: schema.MethodToolsCall, Params: json.RawMessage(raw)}
+		c := New("numeric", "1", nil, WithProtocolVersion(schema.LatestProtocolVersion))
+		c.withProtocolMeta(req)
+		require.Equal(t, raw, string(req.Params))
+		require.Equal(t, raw, string(withAuthMeta(req, "token").Params))
+	}
+}
+
+func TestMetadataPreservesOpaqueToolArgumentBytes(t *testing.T) {
+	const arguments = `{ "definition": {"z":9007199254740993, "a":"<text>&"}, "largeExponent":1e400 }`
+	req := &jsonrpc.Request{Method: schema.MethodToolsCall, Params: json.RawMessage(`{"name":"example","arguments":` + arguments + `}`)}
+	c := New("example", "1", nil, WithProtocolVersion(schema.LatestProtocolVersion))
+	c.withProtocolMeta(req)
+	withAuthMeta(req, "synthetic-token")
+	var params struct {
+		Arguments json.RawMessage `json:"arguments"`
+		Meta      struct {
+			Version       string `json:"io.modelcontextprotocol/protocolVersion"`
+			Authorization struct {
+				Token string `json:"token"`
+			} `json:"authorization"`
+		} `json:"_meta"`
+	}
+	require.NoError(t, json.Unmarshal(req.Params, &params))
+	require.Equal(t, arguments, string(params.Arguments))
+	require.Equal(t, schema.LatestProtocolVersion, params.Meta.Version)
+	require.Equal(t, "synthetic-token", params.Meta.Authorization.Token)
+}

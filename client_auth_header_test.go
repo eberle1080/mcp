@@ -2,18 +2,65 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/eberle1080/mcp-protocol/schema"
+	mcpclient "github.com/eberle1080/mcp/client"
 	authtransport "github.com/eberle1080/mcp/client/auth/transport"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func TestProtocolRejectionPOSTClassification(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		status        int
+		body          string
+		protocolError bool
+	}{
+		{"version", 400, "invalid MCP-Protocol-Version\n", true},
+		{"ordinary", 400, "invalid request", false},
+		{"unauthorized", 401, "invalid MCP-Protocol-Version", false},
+		{"forbidden", 403, "invalid MCP-Protocol-Version", false},
+		{"upstream", 500, "invalid MCP-Protocol-Version", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := wrapProtocolRejectionHTTPClient(wrapContextAuthHTTPClient(&http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if req.Header.Get("Authorization") != "Bearer test-token" {
+						t.Fatal("caller token was not forwarded")
+					}
+					return &http.Response{StatusCode: tc.status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(tc.body)), Request: req}, nil
+				}),
+			}))
+			ctx := context.WithValue(context.Background(), authtransport.ContextAuthTokenKey, "test-token")
+			req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://example.com/mcp", strings.NewReader(`{"method":"initialize"}`))
+			response, err := client.Do(req)
+			if errors.Is(err, errInvalidMCPProtocolVersion) != tc.protocolError {
+				t.Fatalf("unexpected protocol rejection: %v", err)
+			}
+			if tc.protocolError {
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, err := io.ReadAll(response.Body)
+			if err != nil || string(body) != tc.body || response.StatusCode != tc.status {
+				t.Fatal("ordinary HTTP response changed")
+			}
+		})
+	}
+}
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
@@ -80,6 +127,72 @@ func TestWrapContextAuthHTTPClient_InjectsBearerHeaderFromContext(t *testing.T) 
 	}
 }
 
+func TestBFFUseIDToken_PerCallAuthTokenReachesToolAuthorizationHeader(t *testing.T) {
+	var toolAuthorization string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var request struct {
+			ID     json.RawMessage `json:"id"`
+			Method string          `json:"method"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		switch request.Method {
+		case schema.MethodInitialize:
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Mcp-Session-Id", "bff-id-token-session")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      request.ID,
+				"result": map[string]interface{}{
+					"protocolVersion": schema.LegacyProtocolVersion,
+					"capabilities":    map[string]interface{}{},
+					"serverInfo":      map[string]interface{}{"name": "auth-probe", "version": "1.0"},
+				},
+			})
+		case schema.MethodNotificationInitialized:
+			w.WriteHeader(http.StatusAccepted)
+		case schema.MethodToolsCall:
+			toolAuthorization = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      request.ID,
+				"result":  map[string]interface{}{"content": []interface{}{}},
+			})
+		default:
+			http.Error(w, "unexpected method", http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+
+	useBFF := true
+	options := &ClientOptions{
+		Name:            "steward",
+		Version:         "1.0",
+		ProtocolVersion: schema.LegacyProtocolVersion,
+		Transport:       ClientTransport{Type: "streamable", ClientTransportHTTP: ClientTransportHTTP{URL: server.URL}},
+		Auth:            &ClientAuth{BackendForFrontend: &useBFF, UseIdToken: true},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cli, err := NewClientWithContext(ctx, &julyProtocolClientHandler{}, options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cli.Close()
+
+	_, err = cli.CallTool(ctx, &schema.CallToolRequestParams{Name: "ResourceAuthorization"}, mcpclient.WithAuthToken("id-token-123"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if toolAuthorization != "Bearer id-token-123" {
+		t.Fatalf("Authorization = %q, want %q", toolAuthorization, "Bearer id-token-123")
+	}
+}
+
 func TestWrapContextAuthHTTPClient_PreservesExistingAuthorizationHeader(t *testing.T) {
 	var seenAuth string
 	client := wrapContextAuthHTTPClient(&http.Client{
@@ -113,9 +226,9 @@ func TestWrapContextAuthHTTPClient_PreservesExistingAuthorizationHeader(t *testi
 	}
 }
 
-func TestWrapSSEProtocolRejectionHTTPClient_PreservesContextAuthAndOrdinaryBadRequest(t *testing.T) {
+func TestWrapProtocolRejectionHTTPClient_PreservesContextAuthAndOrdinaryBadRequest(t *testing.T) {
 	var seenAuth string
-	client := wrapSSEProtocolRejectionHTTPClient(wrapContextAuthHTTPClient(&http.Client{
+	client := wrapProtocolRejectionHTTPClient(wrapContextAuthHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			seenAuth = req.Header.Get("Authorization")
 			return &http.Response{
@@ -153,9 +266,9 @@ func TestWrapSSEProtocolRejectionHTTPClient_PreservesContextAuthAndOrdinaryBadRe
 	}
 }
 
-func TestWrapSSEProtocolRejectionHTTPClient_BlockingBadRequestBodyTimesOut(t *testing.T) {
+func TestWrapProtocolRejectionHTTPClient_BlockingBadRequestBodyTimesOut(t *testing.T) {
 	body := newBlockingReadCloser()
-	client := wrapSSEProtocolRejectionHTTPClient(&http.Client{
+	client := wrapProtocolRejectionHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusBadRequest,
@@ -202,9 +315,9 @@ func TestWrapSSEProtocolRejectionHTTPClient_BlockingBadRequestBodyTimesOut(t *te
 	}
 }
 
-func TestWrapSSEProtocolRejectionHTTPClient_BlockingBadRequestBodyHonorsCancellation(t *testing.T) {
+func TestWrapProtocolRejectionHTTPClient_BlockingBadRequestBodyHonorsCancellation(t *testing.T) {
 	body := newBlockingReadCloser()
-	client := wrapSSEProtocolRejectionHTTPClient(&http.Client{
+	client := wrapProtocolRejectionHTTPClient(&http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusBadRequest,

@@ -1,15 +1,22 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/eberle1080/mcp/internal/conv"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
+	streamabletransport "github.com/eberle1080/jsonrpc/transport/client/http/streamable"
 	stdiotransport "github.com/eberle1080/jsonrpc/transport/client/stdio"
 	pclient "github.com/eberle1080/mcp-protocol/client"
 	"github.com/eberle1080/mcp-protocol/schema"
@@ -28,6 +35,7 @@ type Client struct {
 	loggingLevel    *schema.LoggingLevel
 	transport       transport.Transport // server version
 	initialized     bool
+	negotiated      *schema.InitializeResult
 	clientHandler   pclient.Handler
 	authInterceptor *auth.Authorizer
 	stateMu         sync.RWMutex
@@ -39,6 +47,7 @@ type Client struct {
 	// background pinger
 	pingInterval time.Duration
 	pingStop     chan struct{}
+	pingCancel   context.CancelFunc
 	pingWG       sync.WaitGroup
 }
 
@@ -60,13 +69,17 @@ func (c *Client) Initialize(ctx context.Context, options ...RequestOption) (*sch
 		c.stateMu.Lock()
 		c.initialized = true
 		c.stateMu.Unlock()
-		c.startPinger()
-		return &schema.InitializeResult{
+		c.startPinger(ctx, options...)
+		result := &schema.InitializeResult{
 			Capabilities:    discovered.Capabilities,
 			Instructions:    discovered.Instructions,
 			ProtocolVersion: schema.LatestProtocolVersion,
 			ServerInfo:      implementationFromResultMeta(discovered.Meta),
-		}, nil
+		}
+		c.stateMu.Lock()
+		c.negotiated = result
+		c.stateMu.Unlock()
+		return result, nil
 	}
 
 	c.stateMu.RLock()
@@ -102,7 +115,7 @@ func (c *Client) Initialize(ctx context.Context, options ...RequestOption) (*sch
 		if authcfg.IsLinkRequired(err) {
 			return nil, err
 		}
-		return nil, jsonrpc.NewInternalError(err.Error(), req.Params)
+		return nil, jsonrpc.NewInternalError(err.Error(), req.Params).WithCause(err)
 	}
 	if response.Error != nil {
 		return nil, response.Error
@@ -112,15 +125,34 @@ func (c *Client) Initialize(ctx context.Context, options ...RequestOption) (*sch
 	if err != nil {
 		return nil, jsonrpc.NewInternalError(fmt.Sprintf("failed to unmarshal InitializeResult: %v", err), nil)
 	}
+	// HTTP construction supplies a negotiation owner so the server-selected
+	// version is validated and installed before initialized or subsequent GETs.
+	if negotiator, ok := currentTransport.(protocolNegotiator); ok {
+		c.stateMu.Lock()
+		changed := c.negotiated != nil && c.protocolVersion != result.ProtocolVersion
+		c.stateMu.Unlock()
+		if changed {
+			return nil, fmt.Errorf("server changed protocol during reconnect")
+		}
+		if err := negotiator.NegotiateProtocolVersion(result.ProtocolVersion); err != nil {
+			return nil, err
+		}
+		c.stateMu.Lock()
+		if c.protocolVersion != result.ProtocolVersion {
+			c.protocolVersion = result.ProtocolVersion
+		}
+		c.stateMu.Unlock()
+	}
 	err = currentTransport.Notify(ctx, &jsonrpc.Notification{Method: schema.MethodNotificationInitialized})
 	if err != nil {
 		return nil, jsonrpc.NewInternalError(fmt.Sprintf("failed to notify initialized: %v", err), nil)
 	}
 	c.stateMu.Lock()
 	c.initialized = true
+	c.negotiated = &result
 	c.stateMu.Unlock()
 	// Start background pinger if configured
-	c.startPinger()
+	c.startPinger(ctx, options...)
 	return &result, nil
 }
 
@@ -184,7 +216,7 @@ func (c *Client) discover(ctx context.Context, options ...RequestOption) (*schem
 		if authcfg.IsLinkRequired(err) {
 			return nil, err
 		}
-		return nil, jsonrpc.NewInternalError(err.Error(), nil)
+		return nil, jsonrpc.NewInternalError(err.Error(), nil).WithCause(err)
 	}
 	if response.Error != nil {
 		return nil, response.Error
@@ -269,8 +301,21 @@ func (c *Client) Unsubscribe(ctx context.Context, params *schema.UnsubscribeRequ
 // long-lived background goroutines (e.g. streamable SSE readers) do not leak
 // across reconnects.
 func (c *Client) reconnectAndInitialize(ctx context.Context) error {
+	return c.reconnectFailedTransport(ctx, nil)
+}
+
+func (c *Client) reconnectFailedTransport(ctx context.Context, failed transport.Transport) error {
 	c.reconnectMu.Lock()
 	defer c.reconnectMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	c.stateMu.RLock()
+	alreadyRecovered := failed != nil && c.transport != failed && c.initialized
+	c.stateMu.RUnlock()
+	if alreadyRecovered {
+		return nil
+	}
 	if c.reconnect == nil {
 		return fmt.Errorf("reconnect is not configured")
 	}
@@ -325,14 +370,28 @@ func (c *Client) ensureInitialized(ctx context.Context) error {
 
 // startPinger launches a background goroutine that periodically sends MCP ping.
 // It stops when Close() is called. If ping fails, it attempts to reconnect.
-func (c *Client) startPinger() {
+func (c *Client) startPinger(ctx context.Context, options ...RequestOption) {
 	if c.pingInterval <= 0 {
 		return
 	}
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
 	if c.pingStop != nil {
 		return // already running
 	}
+	// Keep only the selected transport credential. Request deadlines, values
+	// and cancellation belong to the caller; keepalive lasts until Close.
+	background, cancel := context.WithCancel(context.Background())
+	token, _ := ctx.Value(authtransport.ContextAuthTokenKey).(string)
+	if selected := NewRequestOptions(options).StringToken; selected != "" {
+		token = selected
+	}
+	if token != "" {
+		background = context.WithValue(background, authtransport.ContextAuthTokenKey, token)
+	}
 	c.pingStop = make(chan struct{})
+	c.pingCancel = cancel
+	stop := c.pingStop
 	c.pingWG.Add(1)
 	go func() {
 		defer c.pingWG.Done()
@@ -341,8 +400,7 @@ func (c *Client) startPinger() {
 		for {
 			select {
 			case <-ticker.C:
-				// Use a detached context to avoid tying ping to caller deadlines
-				ctx := context.Background()
+				ctx := background
 				if !c.isInitialized() {
 					continue
 				}
@@ -355,7 +413,7 @@ func (c *Client) startPinger() {
 					// Otherwise attempt reconnect and continue.
 					_ = c.reconnectAndInitialize(ctx)
 				}
-			case <-c.pingStop:
+			case <-stop:
 				return
 			}
 		}
@@ -365,15 +423,21 @@ func (c *Client) startPinger() {
 // Close stops background routines (like pinger) and closes the underlying
 // transport when it implements io.Closer-like semantics. Closing the
 // transport is required for HTTP streaming transports whose long-lived SSE
-// goroutines would otherwise leak (see github.com/viant/jsonrpc streamable
+// goroutines would otherwise leak (see github.com/eberle1080/jsonrpc streamable
 // Client.Close).
 func (c *Client) Close() {
-	if c.pingStop != nil {
+	c.stateMu.Lock()
+	if c.pingCancel != nil {
+		c.pingCancel()
+		c.pingCancel = nil
 		close(c.pingStop)
-		c.pingWG.Wait()
-		c.pingStop = nil
 	}
-	if t := c.transport; t != nil {
+	c.stateMu.Unlock()
+	c.pingWG.Wait()
+	c.stateMu.RLock()
+	t := c.transport
+	c.stateMu.RUnlock()
+	if t != nil {
 		if closer, ok := t.(interface{ Close() error }); ok {
 			_ = closer.Close()
 		} else if closer, ok := t.(interface{ Close() }); ok {
@@ -414,6 +478,10 @@ const (
 
 func (c *Client) Elicit(ctx context.Context, params *schema.ElicitRequestParams, options ...RequestOption) (*schema.ElicitResult, error) {
 	return send[schema.ElicitRequestParams, schema.ElicitResult](ctx, c, methodElicit, params, options...)
+}
+
+type protocolNegotiator interface {
+	NegotiateProtocolVersion(string) error
 }
 
 type versioner interface {
@@ -467,6 +535,18 @@ func WithAuthInterceptor(authorizer *auth.Authorizer) Option {
 	}
 }
 
+// HTTP 404 on an established Streamable HTTP session means the server
+// discarded that session before dispatch. It is distinct from an RPC/business
+// not-found response or an ambiguous connection failure.
+func expiredHTTPSession(active transport.Transport, err error) bool {
+	session, ok := active.(interface{ SessionID() string })
+	if !ok || session.SessionID() == "" {
+		return false
+	}
+	var status interface{ HTTPStatusCode() int }
+	return errors.As(err, &status) && status.HTTPStatusCode() == http.StatusNotFound
+}
+
 func send[P any, R any](ctx context.Context, client *Client, method string, parameters *P, options ...RequestOption) (*R, error) {
 	if !client.isInitialized() { //ensure initialized
 		if err := client.ensureInitialized(ctx); err != nil {
@@ -487,6 +567,9 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 	}
 	client.withProtocolMeta(req)
 	if ro := NewRequestOptions(options); ro != nil {
+		if ro.NoRetry {
+			ctx = authcfg.WithNoRetry(ctx)
+		}
 		if ro.RequestId != nil {
 			req.Id = ro.RequestId
 		}
@@ -506,10 +589,12 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 		if authcfg.IsLinkRequired(err) {
 			return nil, err
 		}
-		// Automatic session recovery – if the server has been restarted, the existing session can be lost.
-		// In that case the transport returns an HTTP 404 error containing "session '<id>' not found".
-		if strings.Contains(err.Error(), "session") && strings.Contains(err.Error(), "not found") {
-			if recErr := client.reconnectAndInitialize(ctx); recErr == nil {
+		// Restore a server-discarded session once, retaining legacy session-error
+		// compatibility. NoRetry, cancellation and ambiguous failures never
+		// enter the typed HTTP recovery path.
+		legacySessionMissing := strings.Contains(err.Error(), "session") && strings.Contains(err.Error(), "not found")
+		if !authcfg.NoRetry(ctx) && ctx.Err() == nil && (expiredHTTPSession(activeTransport, err) || legacySessionMissing) {
+			if recErr := client.reconnectFailedTransport(ctx, activeTransport); recErr == nil {
 				// Construct fresh request to avoid duplicate id after successful reconnect
 				req, _ = jsonrpc.NewRequest(method, parameters)
 				client.withProtocolMeta(req)
@@ -539,18 +624,18 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 				if authcfg.IsLinkRequired(recErr) {
 					return nil, recErr
 				}
-				return nil, jsonrpc.NewInternalError(recErr.Error(), nil)
+				return nil, jsonrpc.NewInternalError(recErr.Error(), nil).WithCause(recErr)
 			}
 		}
 		if err != nil {
 			if authcfg.IsLinkRequired(err) {
 				return nil, err
 			}
-			return nil, jsonrpc.NewInternalError(err.Error(), nil)
+			return nil, jsonrpc.NewInternalError(err.Error(), nil).WithCause(err)
 		}
 	}
 	// Optionally intercept 401 Unauthorized and retry with token
-	if client.authInterceptor != nil {
+	if client.authInterceptor != nil && !authcfg.NoRetry(ctx) {
 		nextReq, interceptErr := client.authInterceptor.Intercept(ctx, req, response)
 		if interceptErr != nil {
 			if authcfg.IsLinkRequired(interceptErr) {
@@ -568,7 +653,7 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 				if authcfg.IsLinkRequired(err) {
 					return nil, err
 				}
-				return nil, jsonrpc.NewInternalError(err.Error(), nil)
+				return nil, jsonrpc.NewInternalError(err.Error(), nil).WithCause(err)
 			}
 		}
 	}
@@ -583,26 +668,63 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 		return nil, jsonrpc.NewInternalError(err.Error(), nil)
 	}
 
+	// July decoding requires cache fields, but older peers never supplied
+	// those hints. Preserve that absence for catalog owners: synthesized
+	// private+zero must not become an explicit no-cache instruction. A real
+	// zero TTL (including one sent without cacheScope) remains authoritative.
+	if tools, ok := any(&result).(*schema.ListToolsResult); ok {
+		var hints struct {
+			CacheScope string `json:"cacheScope"`
+			TTL        *int   `json:"ttlMs"`
+		}
+		if json.Unmarshal(response.Result, &hints) == nil && hints.CacheScope == "" && hints.TTL == nil {
+			tools.CacheScope = ""
+		}
+	}
 	return &result, nil
 }
 
-// withProtocolMeta adds the stateless July request metadata without requiring
-// every caller to construct the generated request parameter structs manually.
+// withProtocolMeta keeps generated request metadata consistent with the wire version.
 func (c *Client) withProtocolMeta(req *jsonrpc.Request) {
-	if c.protocolVersion != schema.LatestProtocolVersion || req == nil {
+	if req == nil {
 		return
 	}
-	var params map[string]interface{}
+	c.stateMu.RLock()
+	version, activeTransport := c.protocolVersion, c.transport
+	c.stateMu.RUnlock()
+	if version != schema.LatestProtocolVersion {
+		// Current schema types serialize a required version field even on a legacy
+		// connection. Fill that field without re-encoding opaque params or adding
+		// July-only metadata to legacy messages that never carried it.
+		switch activeTransport.(type) {
+		case protocolNegotiator, *streamabletransport.Client:
+			const path = `_meta.io\.modelcontextprotocol/protocolVersion`
+			if current := gjson.GetBytes(req.Params, path); current.Exists() && current.String() != version {
+				if updated, err := sjson.SetBytes(req.Params, path, version); err == nil {
+					req.Params = updated
+				}
+			}
+		}
+		return
+	}
+	var params map[string]json.RawMessage
 	if len(req.Params) > 0 && string(req.Params) != "null" {
-		_ = json.Unmarshal(req.Params, &params)
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return
+		}
 	}
 	if params == nil {
-		params = map[string]interface{}{}
+		params = map[string]json.RawMessage{}
 	}
-	meta, _ := params["_meta"].(map[string]interface{})
+	var metadata any
+	if len(params["_meta"]) > 0 {
+		if err := conv.DecodeNumbers(params["_meta"], &metadata); err != nil {
+			return
+		}
+	}
+	meta, _ := metadata.(map[string]interface{})
 	if meta == nil {
 		meta = map[string]interface{}{}
-		params["_meta"] = meta
 	}
 	for key, value := range c.meta {
 		if _, reserved := meta[key]; !reserved {
@@ -611,37 +733,36 @@ func (c *Client) withProtocolMeta(req *jsonrpc.Request) {
 	}
 	meta["io.modelcontextprotocol/clientCapabilities"] = c.capabilities
 	meta["io.modelcontextprotocol/clientInfo"] = c.info
-	meta["io.modelcontextprotocol/protocolVersion"] = c.protocolVersion
+	meta["io.modelcontextprotocol/protocolVersion"] = version
 	c.stateMu.RLock()
 	loggingLevel := c.loggingLevel
 	c.stateMu.RUnlock()
 	if loggingLevel != nil {
 		meta["io.modelcontextprotocol/logLevel"] = *loggingLevel
 	}
-	if raw, err := json.Marshal(params); err == nil {
-		req.Params = raw
-	}
+	_ = conv.SetRequestMeta(req, params, meta)
 }
 
 // normalizeResultJSON implements the July rule that a missing resultType from
 // an older peer means "complete". Cache fields are supplied only for decoding
-// legacy results through the July-preferred root schema.
+// legacy results through the July-preferred root schema. Opaque nested values
+// remain raw JSON so normalization cannot round numbers or reinterpret data.
 func normalizeResultJSON(method string, raw json.RawMessage) json.RawMessage {
-	var result map[string]interface{}
+	var result map[string]json.RawMessage
 	if len(raw) == 0 || json.Unmarshal(raw, &result) != nil || result == nil {
 		return raw
 	}
-	if value, ok := result["resultType"]; !ok || value == "" {
-		result["resultType"] = "complete"
+	if value, ok := result["resultType"]; !ok || bytes.Equal(bytes.TrimSpace(value), []byte(`""`)) {
+		result["resultType"] = json.RawMessage(`"complete"`)
 	}
 	switch method {
 	case schema.MethodResourcesList, schema.MethodResourcesTemplatesList,
 		schema.MethodResourcesRead, schema.MethodPromptsList, schema.MethodToolsList:
-		if value, ok := result["cacheScope"]; !ok || value == "" {
-			result["cacheScope"] = "private"
+		if value, ok := result["cacheScope"]; !ok || bytes.Equal(bytes.TrimSpace(value), []byte(`""`)) {
+			result["cacheScope"] = json.RawMessage(`"private"`)
 		}
 		if _, ok := result["ttlMs"]; !ok {
-			result["ttlMs"] = 0
+			result["ttlMs"] = json.RawMessage(`0`)
 		}
 	}
 	normalized, err := json.Marshal(result)
@@ -656,19 +777,24 @@ func withAuthMeta(req *jsonrpc.Request, token string) *jsonrpc.Request {
 	if token == "" {
 		return req
 	}
-	var params map[string]interface{}
+	var params map[string]json.RawMessage
 	if len(req.Params) > 0 && string(req.Params) != "null" {
-		_ = json.Unmarshal(req.Params, &params)
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return req
+		}
 	}
 	if params == nil {
-		params = map[string]interface{}{}
+		params = map[string]json.RawMessage{}
 	}
-	var meta map[string]interface{}
-	if v, ok := params["_meta"].(map[string]interface{}); ok {
-		meta = v
-	} else {
+	var metadata any
+	if len(params["_meta"]) > 0 {
+		if err := conv.DecodeNumbers(params["_meta"], &metadata); err != nil {
+			return req
+		}
+	}
+	meta, _ := metadata.(map[string]interface{})
+	if meta == nil {
 		meta = map[string]interface{}{}
-		params["_meta"] = meta
 	}
 	var auth map[string]interface{}
 	if v, ok := meta["authorization"].(map[string]interface{}); ok {
@@ -678,9 +804,7 @@ func withAuthMeta(req *jsonrpc.Request, token string) *jsonrpc.Request {
 		meta["authorization"] = auth
 	}
 	auth["token"] = token
-	if raw, err := json.Marshal(params); err == nil {
-		req.Params = raw
-	}
+	_ = conv.SetRequestMeta(req, params, meta)
 	return req
 }
 
@@ -693,4 +817,21 @@ func isStdio(t transport.Transport) bool {
 		return true
 	}
 	return false
+}
+
+// NegotiatedServer returns detached capability/protocol state from the completed
+// handshake. It performs no discovery or metadata RPC.
+func (c *Client) NegotiatedServer() (*schema.InitializeResult, error) {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	if c.negotiated == nil {
+		return nil, errUninitialized
+	}
+	raw, err := json.Marshal(c.negotiated)
+	if err != nil {
+		return nil, err
+	}
+	var result schema.InitializeResult
+	err = json.Unmarshal(raw, &result)
+	return &result, err
 }

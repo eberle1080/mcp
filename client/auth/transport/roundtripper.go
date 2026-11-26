@@ -96,7 +96,7 @@ func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// 2) If it wasn’t a 401, just return it.
-	if resp.StatusCode != http.StatusUnauthorized {
+	if resp.StatusCode != http.StatusUnauthorized || config.NoRetry(req.Context()) {
 		return resp, nil
 	}
 	// Close the prior body so we don’t leak.
@@ -210,6 +210,9 @@ func (r *RoundTripper) Token(ctx context.Context, resp *http.Response) (*oauth2.
 func (r *RoundTripper) ProtectedResourceToken(ctx context.Context, resourceMetadata *meta.ProtectedResourceMetadata, scope string) (*oauth2.Token, error) {
 	if r.credentialResolver != nil {
 		return nil, fmt.Errorf("interactive oauth flow is disabled: external credential resolver is installed")
+	}
+	if resourceMetadata == nil || len(resourceMetadata.AuthorizationServers) == 0 {
+		return nil, fmt.Errorf("protected resource metadata has no authorization servers")
 	}
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	authServers := resourceMetadata.AuthorizationServers
