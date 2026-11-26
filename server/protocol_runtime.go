@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/eberle1080/mcp/internal/conv"
 	"reflect"
 
 	"github.com/eberle1080/jsonrpc"
@@ -18,28 +19,31 @@ func (h *Handler) prepareProtocolRequest(ctx context.Context, request *jsonrpc.R
 	if request.Method == schema.MethodInitialize {
 		return ctx, schema.LegacyProtocolVersion, nil
 	}
-	var params map[string]interface{}
+	var params map[string]json.RawMessage
 	if len(request.Params) > 0 && string(request.Params) != "null" {
 		if err := json.Unmarshal(request.Params, &params); err != nil {
 			return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), request.Params)
 		}
 	}
 	if params == nil {
-		params = map[string]interface{}{}
+		params = map[string]json.RawMessage{}
 	}
-	meta, _ := params["_meta"].(map[string]interface{})
+	var metadata any
+	if len(params["_meta"]) > 0 {
+		if err := conv.DecodeNumbers(params["_meta"], &metadata); err != nil {
+			return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), request.Params)
+		}
+	}
+	meta, _ := metadata.(map[string]interface{})
 	if meta == nil {
 		legacyVersion := h.legacyProtocolVersion()
 		meta = map[string]interface{}{
 			"io.modelcontextprotocol/clientCapabilities": map[string]interface{}{},
 			"io.modelcontextprotocol/protocolVersion":    legacyVersion,
 		}
-		params["_meta"] = meta
-		raw, err := json.Marshal(params)
-		if err != nil {
-			return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), request.Params)
+		if err := conv.SetRequestMeta(request, params, meta); err != nil {
+			return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), nil)
 		}
-		request.Params = raw
 		return ctx, legacyVersion, nil
 	}
 	version, _ := meta["io.modelcontextprotocol/protocolVersion"].(string)
@@ -66,11 +70,9 @@ func (h *Handler) prepareProtocolRequest(ctx context.Context, request *jsonrpc.R
 			metaChanged = true
 		}
 		if metaChanged {
-			raw, err := json.Marshal(params)
-			if err != nil {
-				return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), request.Params)
+			if err := conv.SetRequestMeta(request, params, meta); err != nil {
+				return ctx, "", jsonrpc.NewInvalidParamsError(err.Error(), nil)
 			}
-			request.Params = raw
 		}
 		return ctx, version, nil
 	}
@@ -228,6 +230,11 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 	case *schema.CallToolResult:
 		if value.Meta == nil {
 			value.Meta = meta
+		} else if meta != nil && value.Meta.IoModelcontextprotocolServerInfo == nil {
+			// Keep extension metadata and never mutate a shared caller object.
+			merged := *value.Meta
+			merged.IoModelcontextprotocolServerInfo = meta.IoModelcontextprotocolServerInfo
+			value.Meta = &merged
 		}
 		if value.ResultType == "" {
 			value.ResultType = completeResultType

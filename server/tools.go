@@ -1,10 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
@@ -15,21 +15,32 @@ func (h *Handler) ListTools(ctx context.Context, request *jsonrpc.Request) (*sch
 	if err := unmarshalOptionalParams(request.Params, &listToolsRequest.Params); err != nil {
 		return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
 	}
-
 	id, _ := jsonrpc.AsRequestIntId(request.Id)
 	return h.handler.ListTools(ctx, &jsonrpc.TypedRequest[*schema.ListToolsRequest]{Request: listToolsRequest, Id: uint64(id)})
 }
 
 // CallTool handles the tools/call method
 func (h *Handler) CallTool(ctx context.Context, request *jsonrpc.Request) (*schema.CallToolResult, *jsonrpc.Error) {
-	callToolRequest := &schema.CallToolRequest{Method: request.Method}
-
-	if len(request.Params) > 0 {
-		if err := json.Unmarshal(request.Params, &callToolRequest.Params); err != nil {
-			return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
-		}
+	raw := bytes.TrimSpace(request.Params)
+	if len(raw) == 0 || raw[0] != '{' {
+		return nil, jsonrpc.NewInvalidParamsError("tool parameters must be a JSON object", nil)
 	}
-
+	callToolRequest := &schema.CallToolRequest{Method: request.Method}
+	if err := json.Unmarshal(request.Params, &callToolRequest.Params); err != nil {
+		return nil, jsonrpc.NewInvalidParamsError(fmt.Sprintf("failed to parse: %v", err), request.Params)
+	}
+	var original struct {
+		Arguments toolArgumentsMember `json:"arguments"`
+	}
+	if err := json.Unmarshal(request.Params, &original); err != nil {
+		return nil, jsonrpc.NewInvalidParamsError("invalid tool arguments", nil)
+	}
+	var carrier toolArgumentsContext
+	if !original.Arguments.repeated {
+		carrier = toolArgumentsContext{request: callToolRequest, raw: original.Arguments.raw}
+	}
+	// An ambiguous nested call must also shadow the parent's carrier.
+	ctx = context.WithValue(ctx, toolArgumentsContextKey{}, carrier)
 	id, _ := jsonrpc.AsRequestIntId(request.Id)
 	return h.handler.CallTool(ctx, &jsonrpc.TypedRequest[*schema.CallToolRequest]{Request: callToolRequest, Id: uint64(id)})
 }

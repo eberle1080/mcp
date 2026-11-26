@@ -56,9 +56,12 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 	}
 
 	// Default in-memory BFF AuthStore (dev-friendly). Replace via server options for production.
-	memAuth := streamauth.NewMemoryStore(30*time.Minute, 24*time.Hour, 2*time.Minute)
-	mcpauth.SetDefaultBFFAuthStore(memAuth)
-	mcpauth.SetDefaultBFFAuthCookieName("BFF-Auth-Session")
+	memAuth := s.bffAuthStore
+	if memAuth == nil {
+		memAuth = streamauth.NewMemoryStore(30*time.Minute, 24*time.Hour, 2*time.Minute)
+		mcpauth.SetDefaultBFFAuthStore(memAuth)
+		mcpauth.SetDefaultBFFAuthCookieName("BFF-Auth-Session")
+	}
 	if serverDebug() {
 		fmt.Printf("[mcp/server] HTTP addr=%s sseURI=%s msgURI=%s streamURI=%s\n", addr, s.sseURI, s.sseMessageURI, s.streamableURI)
 	}
@@ -67,8 +70,17 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 	}
 
 	// SSE and Streamable handlers with configured URIs
+	closed := func(session *base.Session) {
+		if s.onSessionClose == nil || session == nil {
+			return
+		}
+		if handler, ok := session.Handler.(*Handler); ok {
+			handler.Close()
+		}
+	}
 	// Enable BFF auth cookie (opaque grant) and handshake rehydrate; do NOT set transport session in cookies.
 	sseOptions := []sse.Option{
+		sse.WithOnSessionClose(closed),
 		sse.WithURI(s.sseURI),
 		sse.WithMessageURI(s.sseMessageURI),
 		sse.WithKeepAliveInterval(2 * time.Second),
@@ -78,6 +90,7 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 		sse.WithRehydrateOnHandshake(true),
 	}
 	streamableOptions := []streamable.Option{
+		streamable.WithOnSessionClose(closed),
 		streamable.WithURI(s.streamableURI),
 		streamable.WithKeepAliveInterval(2 * time.Second),
 		streamable.WithStatelessResolver(func(request *http.Request) bool {
@@ -111,7 +124,7 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 		middlewareHandlers = append(middlewareHandlers, s.authorizer)
 	}
 	// Validate MCP-Protocol-Version and set response header
-	middlewareHandlers = append(middlewareHandlers, protocolVersionMiddleware())
+	middlewareHandlers = append(middlewareHandlers, protocolVersionMiddleware(s.maxRequestBodyBytes))
 	middlewareHandlers = append(middlewareHandlers, s.corsHandler)
 	// Validate Origin on all requests (uses configured CORS allowlist)
 	if s.corsConfig != nil {
@@ -137,8 +150,11 @@ func (s *Server) HTTP(_ context.Context, addr string) *http.Server {
 		})
 	}
 	server := &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr: addr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := mcpauth.WithBFFTransport(r.Context(), memAuth, "BFF-Auth-Session")
+			mux.ServeHTTP(w, r.WithContext(ctx))
+		}),
 	}
 	return server
 }

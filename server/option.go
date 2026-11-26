@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"github.com/eberle1080/jsonrpc/transport"
+	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp/server/auth"
@@ -28,6 +31,21 @@ func WithInstructions(instructions string) Option {
 		s.instructions = &instructions
 		return nil
 	}
+}
+
+// WithBFFAuthStore binds an auth grant store to this HTTP listener. Its request
+// context also binds the same store to the listener's auth.Service.
+func WithBFFAuthStore(store streamauth.Store) Option {
+	return func(s *Server) error {
+		s.bffAuthStore = store
+		return nil
+	}
+}
+
+// WithOnSessionClose observes final transport-session removal. A temporary
+// streaming disconnect remains resumable and does not close the session.
+func WithOnSessionClose(closed func(transport.Notifier)) Option {
+	return func(s *Server) error { s.onSessionClose = closed; return nil }
 }
 
 // WithToolProtocolErrors preserves JSON-RPC errors returned by tools/call.
@@ -160,6 +178,18 @@ func WithProtocolVersion(version string) Option {
 func WithSessionStore(store base.SessionStore) Option {
 	return func(s *Server) error {
 		s.sessionStore = store
+		return nil
+	}
+}
+
+// WithMaxRequestBodyBytes selects an explicit bounded HTTP request limit.
+// The default remains 4 MiB. This never disables request-size enforcement.
+func WithMaxRequestBodyBytes(limit int64) Option {
+	return func(s *Server) error {
+		if limit <= 0 || limit > 64<<20 {
+			return fmt.Errorf("MCP request limit must be between 1 byte and 64 MiB")
+		}
+		s.maxRequestBodyBytes = limit
 		return nil
 	}
 }

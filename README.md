@@ -380,3 +380,15 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 Author: Adrian Witas
 
 This project is maintained by [Viant](https://github.com/viant).
+
+### Tool-call JSON numbers
+
+Generic tool-call argument and result values use standard `encoding/json`
+decoding: numeric leaves are `float64`, including large integers and precise
+decimals. Large numbers may round, tiny exponents may underflow to zero, and
+float64 overflow is rejected. Trailing or malformed JSON is rejected.
+
+Declared numeric fields and envelope IDs retain their existing typed decoding.
+Schema enums and schema vocabulary continue to preserve exact `json.Number`
+values; this exact schema handling does not extend to generic tool payloads.
+Applications requiring exact business identifiers should use string fields.
