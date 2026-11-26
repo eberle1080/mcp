@@ -69,7 +69,7 @@ func (c *Client) Initialize(ctx context.Context, options ...RequestOption) (*sch
 		c.stateMu.Lock()
 		c.initialized = true
 		c.stateMu.Unlock()
-		c.startPinger(ctx, options...)
+		// No keepalive: 2026-07-28 has no session to keep alive and no ping.
 		result := &schema.InitializeResult{
 			Capabilities:    discovered.Capabilities,
 			Instructions:    discovered.Instructions,
@@ -278,6 +278,9 @@ func (c *Client) Complete(ctx context.Context, params *schema.CompleteRequestPar
 }
 
 func (c *Client) Ping(ctx context.Context, params *schema.PingRequestParams, options ...RequestOption) (*schema.PingResult, error) {
+	if c.protocolVersion == schema.LatestProtocolVersion {
+		return nil, fmt.Errorf("%s is not available in %s", schema.MethodPing, schema.LatestProtocolVersion)
+	}
 	return send[schema.PingRequestParams, schema.PingResult](ctx, c, schema.MethodPing, params, options...)
 }
 

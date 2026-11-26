@@ -88,7 +88,7 @@ func TestNumericCompatibilityActualTypedHTTPBothProtocols(t *testing.T) {
 			if _, err := native.CallTool(canceled, &schema.CallToolRequestParams{Name: "numeric"}); err == nil {
 				t.Fatal("cancellation ignored")
 			}
-			if _, err := native.Ping(ctx, &schema.PingRequestParams{}); err != nil {
+			if _, err := native.ListTools(ctx, nil); err != nil {
 				t.Fatalf("cancellation poisoned connection: %v", err)
 			}
 		})
