@@ -67,7 +67,7 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 	}
 	if protocolVersion == schema.LatestProtocolVersion {
 		switch request.Method {
-		case schema.MethodSubscribe, schema.MethodUnsubscribe, schema.MethodLoggingSetLevel:
+		case schema.MethodSubscribe, schema.MethodUnsubscribe, schema.MethodLoggingSetLevel, schema.MethodPing:
 			response.Error = jsonrpc.NewMethodNotFound(fmt.Sprintf("method %s was removed in %s", request.Method, schema.LatestProtocolVersion), request.Params)
 			return
 		}
@@ -191,6 +191,13 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 
 func (h *Handler) setResponse(protocolVersion string, response *jsonrpc.Response, result interface{}, rpcError *jsonrpc.Error) {
 	if rpcError != nil {
+		// 2026-07-28 replaced resource-not-found (-32002) with invalid params;
+		// handlers written for older revisions still return the old code.
+		if protocolVersion == schema.LatestProtocolVersion && rpcError.Code == schema.ResourceNotFound {
+			translated := *rpcError
+			translated.Code = jsonrpc.InvalidParams
+			rpcError = &translated
+		}
 		response.Error = rpcError
 	}
 	// Legacy producers do not have cache metadata. Do not turn an absent

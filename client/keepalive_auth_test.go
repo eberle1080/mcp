@@ -16,7 +16,7 @@ import (
 )
 
 func TestKeepaliveReconnectRetainsOnlySelectedCredential(t *testing.T) {
-	for _, version := range []string{schema.LegacyProtocolVersion, schema.LatestProtocolVersion} {
+	for _, version := range []string{schema.LegacyProtocolVersion} {
 		for _, token := range []string{"fixture-alice-token", "fixture-bob-token", ""} {
 			t.Run(version+"/"+token, func(t *testing.T) {
 				type requestValue struct{}
@@ -107,4 +107,29 @@ func TestCloseCancelsBlockedKeepalive(t *testing.T) {
 		t.Fatal("Close did not cancel the blocked keepalive")
 	}
 	connection.Close()
+}
+
+// 2026-07-28 removed ping and has no session to keep alive, so a client on that
+// revision neither starts a keepalive nor sends ping when asked.
+func TestLatestClientSendsNoPing(t *testing.T) {
+	var mu sync.Mutex
+	var methods []string
+	peer := &mockTransport{send: func(_ context.Context, request *jsonrpc.Request) (*jsonrpc.Response, error) {
+		mu.Lock()
+		methods = append(methods, request.Method)
+		mu.Unlock()
+		result := map[string]any{"supportedVersions": []string{schema.LatestProtocolVersion}, "capabilities": map[string]any{}, "resultType": "complete", "cacheScope": "private", "ttlMs": 0}
+		raw, _ := json.Marshal(result)
+		return &jsonrpc.Response{Jsonrpc: jsonrpc.Version, Id: request.Id, Result: raw}, nil
+	}}
+	connection := New("fixture", "1", peer, WithProtocolVersion(schema.LatestProtocolVersion), WithPingInterval(time.Millisecond))
+	defer connection.Close()
+	_, err := connection.Initialize(context.Background())
+	require.NoError(t, err)
+	_, err = connection.Ping(context.Background(), &schema.PingRequestParams{})
+	require.Error(t, err)
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []string{schema.MethodServerDiscover}, methods)
 }

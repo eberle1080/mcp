@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
 	"github.com/eberle1080/mcp-protocol/client"
@@ -35,6 +36,18 @@ func (c *Client) Implements(method string) bool {
 	return c.implements[method]
 }
 
+// unavailableInLatest reports, for a request that arrived under 2026-07-28, that
+// the server cannot send method to the client. That revision forbids
+// server-to-client requests; a handler asks for input by returning an
+// input_required result instead. The error lets callers fall back the same way
+// they do when a legacy client lacks the capability.
+func unavailableInLatest(ctx context.Context, method string) *jsonrpc.Error {
+	if request, ok := ProtocolRequestFromContext(ctx); ok && request.Version == schema.LatestProtocolVersion {
+		return jsonrpc.NewMethodNotFound(fmt.Sprintf("method: %s cannot be sent to the client in MCP %s", method, schema.LatestProtocolVersion), nil)
+	}
+	return nil
+}
+
 func (c *Client) implementsForRequest(ctx context.Context, method string) bool {
 	if request, ok := ProtocolRequestFromContext(ctx); ok {
 		switch method {
@@ -59,6 +72,9 @@ func (c *Client) NextRequestId() uint64 {
 }
 
 func (c *Client) ListRoots(ctx context.Context, request *jsonrpc.TypedRequest[*schema.ListRootsRequest]) (*schema.ListRootsResult, *jsonrpc.Error) {
+	if err := unavailableInLatest(ctx, schema.MethodRootsList); err != nil {
+		return nil, err
+	}
 	if !c.implementsForRequest(ctx, schema.MethodRootsList) {
 		return nil, jsonrpc.NewMethodNotFound("method: roots/list not implemented by client", nil)
 	}
@@ -71,6 +87,9 @@ func (c *Client) ListRoots(ctx context.Context, request *jsonrpc.TypedRequest[*s
 
 // CreateMessage creates a sampling message on the client side.
 func (c *Client) CreateMessage(ctx context.Context, request *jsonrpc.TypedRequest[*schema.CreateMessageRequest]) (*schema.CreateMessageResult, *jsonrpc.Error) {
+	if err := unavailableInLatest(ctx, schema.MethodSamplingCreateMessage); err != nil {
+		return nil, err
+	}
 	if !c.implementsForRequest(ctx, schema.MethodSamplingCreateMessage) {
 		return nil, jsonrpc.NewMethodNotFound("method: sampling/createMessage not implemented by client", nil)
 	}
@@ -85,6 +104,9 @@ func (c *Client) CreateMessage(ctx context.Context, request *jsonrpc.TypedReques
 
 // Elicit asks the client to elicit additional information from the user.
 func (c *Client) Elicit(ctx context.Context, request *jsonrpc.TypedRequest[*schema.ElicitRequest]) (*schema.ElicitResult, *jsonrpc.Error) {
+	if err := unavailableInLatest(ctx, schema.MethodElicitationCreate); err != nil {
+		return nil, err
+	}
 	if !c.implementsForRequest(ctx, schema.MethodElicitationCreate) {
 		return nil, jsonrpc.NewMethodNotFound("method: elicitation/create not implemented by client", nil)
 	}

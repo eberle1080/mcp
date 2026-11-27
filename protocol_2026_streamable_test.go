@@ -338,7 +338,15 @@ func TestJulyStreamableHTTPIsStatelessEndToEnd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	newHandler := serverproto.WithDefaultHandler(ctx, func(*serverproto.DefaultHandler) error { return nil })
+	// One tool, so tools/list can stand in for ping (removed in 2026-07-28) as a
+	// connectivity check.
+	newHandler := serverproto.WithDefaultHandler(ctx, func(handler *serverproto.DefaultHandler) error {
+		handler.Registry.RegisterToolWithSchema("noop", "Does nothing", schema.ToolInputSchema{Type: "object"}, nil,
+			func(context.Context, *schema.CallToolRequest) (*schema.CallToolResult, *jsonrpc.Error) {
+				return &schema.CallToolResult{}, nil
+			})
+		return nil
+	})
 	server, err := mcpserver.New(
 		mcpserver.WithNewHandler(newHandler),
 		mcpserver.WithImplementation(schema.Implementation{Name: "july-server", Version: "1.0"}),
@@ -372,12 +380,11 @@ func TestJulyStreamableHTTPIsStatelessEndToEnd(t *testing.T) {
 	}
 	defer client.Close()
 
-	ping, err := client.Ping(ctx, &schema.PingRequestParams{})
-	if err != nil {
-		t.Fatal(err)
+	if _, err := client.Ping(ctx, &schema.PingRequestParams{}); err == nil {
+		t.Fatal("expected ping to be unavailable in 2026-07-28")
 	}
-	if ping == nil {
-		t.Fatal("expected ping result")
+	if _, err := client.ListTools(ctx, nil); err != nil {
+		t.Fatal(err)
 	}
 
 	listenCtx, stopListening := context.WithCancel(ctx)
@@ -403,7 +410,7 @@ func TestJulyStreamableHTTPIsStatelessEndToEnd(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("subscription request did not stop after cancellation")
 	}
-	if _, err := client.Ping(ctx, &schema.PingRequestParams{}); err != nil {
+	if _, err := client.ListTools(ctx, nil); err != nil {
 		t.Fatalf("client was poisoned by subscription cancellation: %v", err)
 	}
 }

@@ -60,7 +60,7 @@ func TestProtocolVersionMiddleware_ValidatesJulyStandardHeaders(t *testing.T) {
 	handler := protocolVersionMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	body := `{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"weather","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`
+	body := `{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"weather","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}`
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
 	request.Header.Set(schema.HeaderProtocolVersion, schema.LatestProtocolVersion)
 	request.Header.Set(schema.HeaderMethod, schema.MethodToolsCall)
@@ -78,7 +78,7 @@ func TestProtocolVersionMiddleware_RejectsJulyHeaderMismatch(t *testing.T) {
 	handler := protocolVersionMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("mismatched request reached handler")
 	}))
-	body := `{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"weather","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`
+	body := `{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"weather","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}`
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
 	request.Header.Set(schema.HeaderProtocolVersion, schema.LatestProtocolVersion)
 	request.Header.Set(schema.HeaderMethod, schema.MethodToolsCall)
@@ -149,5 +149,98 @@ func TestProtocolVersionMiddleware_RejectsUnsupportedVersion(t *testing.T) {
 
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+}
+
+// serveProtocol runs one POST through the middleware and returns the response;
+// reached reports whether the request got past it.
+func serveProtocol(t *testing.T, header map[string]string, body string) (*httptest.ResponseRecorder, bool) {
+	t.Helper()
+	reached := false
+	handler := protocolVersionMiddleware()(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
+	for key, value := range header {
+		request.Header.Set(key, value)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	return response, reached
+}
+
+func protocolErrorOf(t *testing.T, response *httptest.ResponseRecorder) (json.RawMessage, int) {
+	t.Helper()
+	var result struct {
+		ID    json.RawMessage `json:"id"`
+		Error struct {
+			Code int `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatalf("not a JSON-RPC error: %s", response.Body.String())
+	}
+	return result.ID, result.Error.Code
+}
+
+var julyToolsList = map[string]string{
+	schema.HeaderProtocolVersion: schema.LatestProtocolVersion,
+	schema.HeaderMethod:          schema.MethodToolsList,
+}
+
+func TestProtocolVersionMiddleware_RequiresJulyClientCapabilities(t *testing.T) {
+	response, reached := serveProtocol(t, julyToolsList,
+		`{"jsonrpc":"2.0","id":11,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}`)
+	id, code := protocolErrorOf(t, response)
+	if reached || response.Code != http.StatusBadRequest || code != -32602 || string(id) != "11" {
+		t.Fatalf("missing clientCapabilities: reached=%v status=%d body=%s", reached, response.Code, response.Body.String())
+	}
+}
+
+func TestProtocolVersionMiddleware_RejectsJulyBatch(t *testing.T) {
+	response, reached := serveProtocol(t, julyToolsList,
+		`[{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}]`)
+	_, code := protocolErrorOf(t, response)
+	if reached || response.Code != http.StatusBadRequest || code != -32600 {
+		t.Fatalf("batch: reached=%v status=%d body=%s", reached, response.Code, response.Body.String())
+	}
+}
+
+func TestProtocolVersionMiddleware_DecodesBase64Name(t *testing.T) {
+	body := `{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"météo","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}`
+	header := func(name string) map[string]string {
+		return map[string]string{
+			schema.HeaderProtocolVersion: schema.LatestProtocolVersion,
+			schema.HeaderMethod:          schema.MethodToolsCall,
+			schema.HeaderName:            name,
+		}
+	}
+	// "météo" is not ASCII, so the client sends it base64-encoded.
+	if response, reached := serveProtocol(t, header("=?base64?bcOpdMOpbw==?="), body); !reached {
+		t.Fatalf("encoded name rejected: status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, bad := range []string{"=?base64?not base64!?=", "=?base64?bWV0ZW8=?="} {
+		response, reached := serveProtocol(t, header(bad), body)
+		if _, code := protocolErrorOf(t, response); reached || code != schema.ErrorCodeHeaderMismatch {
+			t.Fatalf("%q: reached=%v body=%s", bad, reached, response.Body.String())
+		}
+	}
+}
+
+func TestProtocolVersionMiddleware_UnsupportedVersionEchoesID(t *testing.T) {
+	response, reached := serveProtocol(t, map[string]string{schema.HeaderProtocolVersion: "2026-01-01"},
+		`{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{}}`)
+	id, code := protocolErrorOf(t, response)
+	if reached || code != schema.ErrorCodeUnsupportedProtocolVersion || string(id) != "9" {
+		t.Fatalf("unsupported version: reached=%v body=%s", reached, response.Body.String())
+	}
+}
+
+func TestProtocolVersionMiddleware_NoVersionHeaderForLegacyRequests(t *testing.T) {
+	response, _ := serveProtocol(t, nil,
+		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy","version":"1"}}}`)
+	if actual := response.Header().Get(schema.HeaderProtocolVersion); actual != "" {
+		t.Fatalf("legacy request without a version header was told %q", actual)
 	}
 }

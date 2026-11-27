@@ -77,12 +77,16 @@ func (h *Handler) prepareProtocolRequest(ctx context.Context, request *jsonrpc.R
 		return ctx, version, nil
 	}
 
+	// 2026-07-28 requires the client's capabilities on every request; there is
+	// no initialize to fall back on.
 	capabilities := schema.ClientCapabilities{}
-	if value, ok := meta["io.modelcontextprotocol/clientCapabilities"]; ok {
-		raw, _ := json.Marshal(value)
-		if err := json.Unmarshal(raw, &capabilities); err != nil {
-			return ctx, "", jsonrpc.NewInvalidParamsError("invalid io.modelcontextprotocol/clientCapabilities", request.Params)
-		}
+	value, ok := meta["io.modelcontextprotocol/clientCapabilities"].(map[string]interface{})
+	if !ok {
+		return ctx, "", jsonrpc.NewInvalidParamsError("missing or invalid _meta field \"io.modelcontextprotocol/clientCapabilities\"", request.Params)
+	}
+	raw, _ := json.Marshal(value)
+	if err := json.Unmarshal(raw, &capabilities); err != nil {
+		return ctx, "", jsonrpc.NewInvalidParamsError("invalid io.modelcontextprotocol/clientCapabilities", request.Params)
 	}
 	clientInfo := schema.Implementation{Name: "unknown", Version: "unknown"}
 	if value, ok := meta["io.modelcontextprotocol/clientInfo"]; ok {
@@ -162,9 +166,7 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 		value.ResultType = completeResultType
 		if version == schema.LatestProtocolVersion {
 			value.Meta = meta
-			ttl := 0
-			value.TtlMs = &ttl
-			value.CacheScope = schema.CacheableResultCacheScopePrivate
+			value.TtlMs, value.CacheScope = cacheHints(value.TtlMs, value.CacheScope)
 		} else {
 			value.TtlMs = nil
 			value.CacheScope = ""
@@ -173,9 +175,10 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 		value.ResultType = completeResultType
 		if version == schema.LatestProtocolVersion {
 			value.Meta = meta
-			ttl := 0
-			value.TtlMs = &ttl
-			value.CacheScope = schema.CacheableResultCacheScopePrivate
+			value.TtlMs, value.CacheScope = cacheHints(value.TtlMs, value.CacheScope)
+		} else {
+			value.TtlMs = nil
+			value.CacheScope = ""
 		}
 	case *schema.ListToolsResult:
 		if value.Meta == nil {
@@ -254,4 +257,17 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 			value.ResultType = completeResultType
 		}
 	}
+}
+
+// cacheHints fills the 2026-07-28 cache fields a handler left unset: no
+// freshness (0 ms) and private scope. Values the handler chose are kept.
+func cacheHints(ttl *int, scope schema.CacheableResultCacheScope) (*int, schema.CacheableResultCacheScope) {
+	if ttl == nil {
+		zero := 0
+		ttl = &zero
+	}
+	if scope == "" {
+		scope = schema.CacheableResultCacheScopePrivate
+	}
+	return ttl, scope
 }
