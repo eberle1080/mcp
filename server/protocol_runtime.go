@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
 
@@ -150,6 +151,14 @@ func (h *Handler) Discover(ctx context.Context) (*schema.DiscoverResult, *jsonrp
 		result.Capabilities = compatResult.Capabilities
 	}
 	h.withdrawUnservedSettings(&result.Capabilities)
+	if h.Server != nil && h.tasks != nil {
+		extensions := make(map[string]map[string]interface{}, len(result.Capabilities.Extensions)+1)
+		for key, value := range result.Capabilities.Extensions {
+			extensions[key] = value
+		}
+		extensions[tasks.ExtensionID] = map[string]interface{}{}
+		result.Capabilities.Extensions = extensions
+	}
 	return result, nil
 }
 
@@ -163,6 +172,12 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 		meta = &schema.ResultMetaObject{IoModelcontextprotocolServerInfo: &info}
 	}
 	switch value := result.(type) {
+	case *tasks.CreateTaskResult:
+		value.Meta = meta
+	case *tasks.GetTaskResult:
+		value.Meta = meta
+	case *tasks.AckResult:
+		value.Meta = meta
 	case *schema.ListSkillsResult:
 		value.ResultType = completeResultType
 		if version == schema.LatestProtocolVersion {

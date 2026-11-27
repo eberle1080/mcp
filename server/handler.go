@@ -9,6 +9,7 @@ import (
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
 	authschema "github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp/internal/conv"
@@ -75,6 +76,12 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 	switch request.Method {
 	case schema.MethodInitialize, schema.MethodServerDiscover, schema.MethodSubscriptionsListen, schema.MethodPing:
 	case schema.MethodLoggingSetLevel:
+	case tasks.MethodGet, tasks.MethodUpdate, tasks.MethodCancel:
+		// The server runtime serves these, not the protocol handler.
+		if h.Server == nil || h.tasks == nil {
+			response.Error = jsonrpc.NewMethodNotFound(fmt.Sprintf("method: %v not found", request.Method), request.Params)
+			return
+		}
 	default:
 		implemented := h.handler.Implements(request.Method)
 		if contextual, ok := h.handler.(interface {
@@ -151,10 +158,25 @@ func (h *Handler) Serve(parent context.Context, request *jsonrpc.Request, respon
 	case schema.MethodToolsList:
 		result, err := h.ListTools(ctx, request)
 		h.setResponse(protocolVersion, response, result, err)
+	case tasks.MethodGet:
+		result, err := h.GetTask(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
+	case tasks.MethodUpdate:
+		result, err := h.UpdateTask(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
+	case tasks.MethodCancel:
+		result, err := h.CancelTask(ctx, request)
+		h.setResponse(protocolVersion, response, result, err)
 	case schema.MethodToolsCall:
-		result, err := h.CallTool(ctx, request)
-		// For tool call errors, return a CallToolResult with isError flag instead of JSON-RPC error
-		if err != nil && !h.toolProtocolErrors {
+		result, task, err := h.callToolWithTasks(ctx, request)
+		if task != nil {
+			h.setResponse(protocolVersion, response, &tasks.CreateTaskResult{ResultType: tasks.ResultTypeTask, Task: *task}, nil)
+			break
+		}
+		// For tool call errors, return a CallToolResult with isError flag instead of JSON-RPC error.
+		// A missing client capability is a protocol error by definition (the
+		// Tasks extension requires -32021 on the wire), so it is never converted.
+		if err != nil && !h.toolProtocolErrors && err.Code != tasks.ErrorCodeMissingCapability {
 			isErr := true
 			msg := err.Message
 			structured := map[string]interface{}{

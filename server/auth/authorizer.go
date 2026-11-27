@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
 
@@ -46,6 +47,10 @@ func (s *Service) EnsureAuthorized(ctx context.Context, request *jsonrpc.Request
 	}
 
 	switch request.Method {
+	case tasks.MethodGet, tasks.MethodUpdate, tasks.MethodCancel, schema.MethodSubscriptionsListen:
+		if s.Policy.Global != nil {
+			s.unauthorized(response, s.Policy.Global)
+		}
 	case schema.MethodToolsCall:
 		if s.Policy.Tools == nil {
 			if s.Policy.Global != nil { //each request is protected

@@ -33,6 +33,8 @@ type Server struct {
 	bffAuthStore              streamauth.Store
 	requestContext            func(context.Context) (context.Context, error)
 	onSessionClose            func(transport.Notifier)
+	// tasks is the Tasks extension runtime; nil unless WithTasks enabled it.
+	tasks *taskManager
 	stdioServer
 	httpServer
 }
