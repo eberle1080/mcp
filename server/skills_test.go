@@ -12,7 +12,9 @@ import (
 	"github.com/eberle1080/jsonrpc"
 	"github.com/eberle1080/jsonrpc/transport"
 	"github.com/eberle1080/mcp-protocol/authorization"
+	pclient "github.com/eberle1080/mcp-protocol/client"
 	skillformat "github.com/eberle1080/mcp-protocol/extension/skills"
+	"github.com/eberle1080/mcp-protocol/logger"
 	"github.com/eberle1080/mcp-protocol/schema"
 	protocol "github.com/eberle1080/mcp-protocol/server"
 	"github.com/eberle1080/mcp/client"
@@ -79,7 +81,7 @@ func TestSkillsInitializedProtocol(t *testing.T) {
 			init, err := c.Initialize(ctx)
 			require.NoError(t, err)
 			require.Contains(t, init.Capabilities.Extensions, schema.SkillsExtension)
-			require.Empty(t, init.Capabilities.Extensions[schema.SkillsExtension])
+			require.Equal(t, map[string]interface{}{schema.SkillsDirectoryRead: true}, init.Capabilities.Extensions[schema.SkillsExtension])
 			require.NotNil(t, init.Capabilities.Resources)
 			first, err := c.ListSkills(ctx, nil)
 			require.NoError(t, err)
@@ -114,6 +116,19 @@ func TestSkillsInitializedProtocol(t *testing.T) {
 				}
 			}
 			require.Equal(t, 1, readRequests, "metadata methods must not prefetch skill contents")
+			directory, err := c.ReadResourceDirectory(ctx, "docs://team0/demo", nil)
+			require.NoError(t, err)
+			require.Equal(t, schema.ResultTypeComplete, directory.ResultType)
+			require.Len(t, directory.Resources, 3)
+			require.Equal(t, "docs://team0/demo/SKILL.md", directory.Resources[0].Uri)
+			raw = wire.results[len(wire.results)-1]
+			if version == "2026-07-28" {
+				require.Contains(t, string(raw), `"ttlMs":0`)
+				require.Contains(t, string(raw), `"cacheScope":"private"`)
+			} else {
+				require.NotContains(t, string(raw), `"ttlMs"`)
+				require.NotContains(t, string(raw), `"cacheScope"`)
+			}
 			bad := "not-a-cursor"
 			_, err = c.ListSkills(ctx, &bad)
 			require.Error(t, err)
@@ -127,7 +142,9 @@ func TestSkillsInitializedProtocol(t *testing.T) {
 				method, params string
 				code           int
 			}{
-				{schema.MethodSkillsGet, `{"uri":12}`, -32602}, {schema.MethodSkillsGet, `{}`, -32602}, {schema.MethodSkillsList, `{"cursor":12}`, -32602}, {"resources/directory/read", `{"uri":"docs://team0/demo"}`, -32601},
+				{schema.MethodSkillsGet, `{"uri":12}`, -32602}, {schema.MethodSkillsGet, `{}`, -32602}, {schema.MethodSkillsList, `{"cursor":12}`, -32602},
+				{schema.MethodResourcesDirectoryRead, `{"uri":"docs://team0/demo/SKILL.md"}`, -32602}, {schema.MethodResourcesDirectoryRead, `{"uri":"docs://team0/missing"}`, -32602},
+				{schema.MethodResourcesDirectoryRead, `{}`, -32602}, {schema.MethodResourcesDirectoryRead, `{"uri":12}`, -32602}, {schema.MethodResourcesDirectoryRead, `{"uri":"docs://team0/demo","cursor":"x"}`, -32602},
 				{schema.MethodSkillsList, `{"cursor":null}`, -32602},
 				{schema.MethodSkillsList, `{"_meta":{"io.modelcontextprotocol/protocolVersion":"2099-01-01"}}`, -32022},
 			} {
@@ -160,6 +177,11 @@ func TestSkillsOrdinaryResourcesDoNotAdvertise(t *testing.T) {
 	rpc, ok := err.(*jsonrpc.Error)
 	require.True(t, ok)
 	require.EqualValues(t, -32601, rpc.Code)
+	// No directoryRead declaration: the client refuses without asking.
+	sent := len(wire.methods)
+	_, err = c.ReadResourceDirectory(ctx, "skill://ordinary", nil)
+	require.ErrorContains(t, err, "has not declared directoryRead")
+	require.Len(t, wire.methods, sent)
 }
 
 func TestSkillsPrivateMetadataAndContent(t *testing.T) {
@@ -200,8 +222,12 @@ func TestSkillsPrivateMetadataAndContent(t *testing.T) {
 			_, err = c.Initialize(ctx)
 			require.NoError(t, err)
 			for _, token := range []string{"", "forged", "verified-by-operator"} {
-				for _, method := range []string{schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesRead} {
-					params := map[string]interface{}{"uri": entry.Metadata().Uri, "_meta": map[string]interface{}{"authorization": map[string]interface{}{"token": token}}}
+				for _, method := range []string{schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesRead, schema.MethodResourcesDirectoryRead} {
+					uri := entry.Metadata().Uri
+					if method == schema.MethodResourcesDirectoryRead {
+						uri = root
+					}
+					params := map[string]interface{}{"uri": uri, "_meta": map[string]interface{}{"authorization": map[string]interface{}{"token": token}}}
 					request, _ := jsonrpc.NewRequest(method, params)
 					response, err := wire.Send(ctx, request)
 					require.NoError(t, err)
@@ -210,9 +236,122 @@ func TestSkillsPrivateMetadataAndContent(t *testing.T) {
 					} else {
 						require.NotNil(t, response.Error)
 						require.NotContains(t, string(response.Result), "secret")
+						require.NotContains(t, string(response.Result), "private.txt")
 					}
 				}
 			}
 		})
+	}
+}
+
+// emptyDirectories serves a directory read that has no children.
+type emptyDirectories struct{ *protocol.DefaultHandler }
+
+func (emptyDirectories) ReadResourceDirectory(context.Context, *jsonrpc.TypedRequest[*schema.ReadResourceDirectoryRequest]) (*schema.ReadResourceDirectoryResult, *jsonrpc.Error) {
+	return &schema.ReadResourceDirectoryResult{}, nil
+}
+
+func TestEmptyDirectoryIsAnEmptyArray(t *testing.T) {
+	ctx := context.Background()
+	srv, err := New(WithNewHandler(func(ctx context.Context, notifier transport.Notifier, logger logger.Logger, client pclient.Operations) (protocol.Handler, error) {
+		d := protocol.NewDefaultHandler(notifier, logger, client)
+		d.Methods.Put(schema.MethodResourcesDirectoryRead, true)
+		return emptyDirectories{d}, nil
+	}))
+	require.NoError(t, err)
+	wire := &skillsTransport{}
+	wire.handler = srv.NewHandler(ctx, wire)
+	response, err := wire.Send(ctx, &jsonrpc.Request{Jsonrpc: "2.0", Method: schema.MethodResourcesDirectoryRead, Params: json.RawMessage(`{"uri":"skill://demo/empty"}`)})
+	require.NoError(t, err)
+	require.Nil(t, response.Error)
+	require.Contains(t, string(response.Result), `"resources":[]`)
+}
+
+// forwarding passes Initialize and Implements to a DefaultHandler without
+// embedding it, so it has no ReadResourceDirectory of its own.
+type forwarding struct{ inner *protocol.DefaultHandler }
+
+func (f forwarding) Initialize(ctx context.Context, init *schema.InitializeRequestParams, result *schema.InitializeResult) {
+	f.inner.Initialize(ctx, init, result)
+}
+func (f forwarding) Discover(ctx context.Context, result *schema.DiscoverResult) {
+	f.inner.Discover(ctx, result)
+}
+func (f forwarding) ListResources(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ListResourcesRequest]) (*schema.ListResourcesResult, *jsonrpc.Error) {
+	return f.inner.ListResources(ctx, r)
+}
+func (f forwarding) ListResourceTemplates(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ListResourceTemplatesRequest]) (*schema.ListResourceTemplatesResult, *jsonrpc.Error) {
+	return f.inner.ListResourceTemplates(ctx, r)
+}
+func (f forwarding) ReadResource(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ReadResourceRequest]) (*schema.ReadResourceResult, *jsonrpc.Error) {
+	return f.inner.ReadResource(ctx, r)
+}
+func (f forwarding) Subscribe(ctx context.Context, r *jsonrpc.TypedRequest[*schema.SubscribeRequest]) (*schema.SubscribeResult, *jsonrpc.Error) {
+	return f.inner.Subscribe(ctx, r)
+}
+func (f forwarding) Unsubscribe(ctx context.Context, r *jsonrpc.TypedRequest[*schema.UnsubscribeRequest]) (*schema.UnsubscribeResult, *jsonrpc.Error) {
+	return f.inner.Unsubscribe(ctx, r)
+}
+func (f forwarding) ListTools(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ListToolsRequest]) (*schema.ListToolsResult, *jsonrpc.Error) {
+	return f.inner.ListTools(ctx, r)
+}
+func (f forwarding) CallTool(ctx context.Context, r *jsonrpc.TypedRequest[*schema.CallToolRequest]) (*schema.CallToolResult, *jsonrpc.Error) {
+	return f.inner.CallTool(ctx, r)
+}
+func (f forwarding) ListPrompts(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ListPromptsRequest]) (*schema.ListPromptsResult, *jsonrpc.Error) {
+	return f.inner.ListPrompts(ctx, r)
+}
+func (f forwarding) GetPrompt(ctx context.Context, r *jsonrpc.TypedRequest[*schema.GetPromptRequest]) (*schema.GetPromptResult, *jsonrpc.Error) {
+	return f.inner.GetPrompt(ctx, r)
+}
+func (f forwarding) Complete(ctx context.Context, r *jsonrpc.TypedRequest[*schema.CompleteRequest]) (*schema.CompleteResult, *jsonrpc.Error) {
+	return f.inner.Complete(ctx, r)
+}
+func (f forwarding) OnNotification(ctx context.Context, n *jsonrpc.Notification) {
+	f.inner.OnNotification(ctx, n)
+}
+func (f forwarding) Implements(method string) bool { return f.inner.Implements(method) }
+
+// forwardingSkills also forwards the skills methods, but not directory reads.
+type forwardingSkills struct{ forwarding }
+
+func (f forwardingSkills) ListSkills(ctx context.Context, r *jsonrpc.TypedRequest[*schema.ListSkillsRequest]) (*schema.ListSkillsResult, *jsonrpc.Error) {
+	return f.inner.ListSkills(ctx, r)
+}
+func (f forwardingSkills) GetSkill(ctx context.Context, r *jsonrpc.TypedRequest[*schema.GetSkillRequest]) (*schema.GetSkillResult, *jsonrpc.Error) {
+	return f.inner.GetSkill(ctx, r)
+}
+
+func TestSkillsAreNotDeclaredForAHandlerThatCannotServeThem(t *testing.T) {
+	ctx := context.Background()
+	compiled, err := (skillformat.Compiler{Source: fstest.MapFS{"SKILL.md": {Data: []byte("---\nname: demo\ndescription: A demo.\n---\n")}}}).Compile(ctx, "skill://demo/SKILL.md")
+	require.NoError(t, err)
+	for _, withSkills := range []bool{false, true} {
+		srv, err := New(WithNewHandler(func(ctx context.Context, notifier transport.Notifier, logger logger.Logger, client pclient.Operations) (protocol.Handler, error) {
+			inner := protocol.NewDefaultHandler(notifier, logger, client)
+			if err := inner.RegisterStaticSkill(compiled); err != nil {
+				return nil, err
+			}
+			if withSkills {
+				return forwardingSkills{forwarding{inner}}, nil
+			}
+			return forwarding{inner}, nil
+		}))
+		require.NoError(t, err)
+		for _, version := range []string{"2025-11-25", "2026-07-28"} {
+			wire := &skillsTransport{}
+			wire.handler = srv.NewHandler(ctx, wire)
+			c := client.New("forwarded", "1", wire, client.WithProtocolVersion(version))
+			init, err := c.Initialize(ctx)
+			require.NoError(t, err, version)
+			if withSkills {
+				require.Equal(t, map[string]interface{}{}, init.Capabilities.Extensions[schema.SkillsExtension], version)
+				_, err = c.ListSkills(ctx, nil)
+				require.NoError(t, err, version)
+			} else {
+				require.NotContains(t, init.Capabilities.Extensions, schema.SkillsExtension, version)
+			}
+			c.Close()
+		}
 	}
 }

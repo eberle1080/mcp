@@ -50,3 +50,29 @@ func (a *Adapter) GetSkill(ctx context.Context, uri string, options ...client.Re
 	}
 	return &result, nil
 }
+
+func (a *Adapter) ReadResourceDirectory(ctx context.Context, uri string, cursor *string, options ...client.RequestOption) (*schema.ReadResourceDirectoryResult, error) {
+	req, err := jsonrpc.NewRequest(schema.MethodResourcesDirectoryRead, &schema.ReadResourceDirectoryRequestParams{Uri: uri, Cursor: cursor})
+	if err != nil {
+		return nil, err
+	}
+	if ro := client.NewRequestOptions(options); ro != nil {
+		if ro.RequestId != nil {
+			req.Id = ro.RequestId
+		}
+		if ro.StringToken != "" {
+			injectAuthMeta(req, ro.StringToken)
+		}
+	}
+	a.ensureRequestID(req)
+	response := &jsonrpc.Response{}
+	a.handler.Serve(ctx, req, response)
+	if response.Error != nil {
+		return nil, response.Error
+	}
+	var result schema.ReadResourceDirectoryResult
+	if err = json.Unmarshal(response.Result, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

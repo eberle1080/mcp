@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	skillformat "github.com/eberle1080/mcp-protocol/extension/skills"
 	"github.com/eberle1080/mcp-protocol/schema"
 	mcpclient "github.com/eberle1080/mcp/client"
 	authctx "github.com/eberle1080/mcp/client/auth/link"
@@ -66,26 +67,51 @@ func (c *managedClient) skillMetadata(ctx context.Context, entryKey string, load
 	return raw, err
 }
 
-// ReadSkillResource lazily retains only immutable files declared by the supplied
-// skill manifest. Other resources retain normal uncached ReadResource behavior.
+// ReadSkillResource reads a file of the skill the manifest describes and checks
+// it the way SEP-2640 requires of a host. A file the manifest lists is
+// returned only when its size and digest match (and, for SKILL.md, its
+// frontmatter); verified results are retained for the manifest's lifetime. A
+// file inside the skill that the manifest does not list is a verification
+// failure, whatever its spelling. For a dynamic skill only SKILL.md's
+// frontmatter can be checked, and nothing is retained. The result holds only
+// the content item that was checked. A URI outside the skill is an ordinary,
+// uncached read. Failures are *skills.VerificationError values; the recovery
+// is a fresh GetSkill.
 func (c *managedClient) ReadSkillResource(ctx context.Context, manifest *schema.GetSkillResult, uri string, opts ...mcpclient.RequestOption) (*schema.ReadResourceResult, error) {
 	_, release, err := c.use()
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	if manifest == nil || manifest.ResultType != "complete" || manifest.Skill.Resources.Dynamic {
+	if manifest == nil || manifest.ResultType != "complete" {
 		return c.ReadResource(ctx, &schema.ReadResourceRequestParams{Uri: uri}, opts...)
 	}
-	declared := false
-	for _, file := range manifest.Skill.Resources.Files {
-		if file.Uri == uri && file.Digest != "" {
-			declared = true
-			break
+	root, err := skillformat.RootOf(manifest.Skill)
+	if err != nil || !skillformat.Inside(root, uri) {
+		return c.ReadResource(ctx, &schema.ReadResourceRequestParams{Uri: uri}, opts...)
+	}
+	if manifest.Skill.Resources.Dynamic {
+		if err := skillformat.Canonical(uri); err != nil {
+			return nil, &skillformat.VerificationError{URI: uri, Reason: err.Error()}
 		}
+		result, err := c.ReadResource(ctx, &schema.ReadResourceRequestParams{Uri: uri}, opts...)
+		if err != nil {
+			return nil, err
+		}
+		item, data, err := skillformat.ContentItem(uri, result)
+		if err != nil {
+			return nil, err
+		}
+		if uri == manifest.Skill.Uri {
+			if err := skillformat.VerifyFrontmatter(manifest.Skill, data); err != nil {
+				return nil, err
+			}
+		}
+		return onlyItem(result, item), nil
 	}
+	file, declared := skillformat.File(manifest.Skill, uri)
 	if !declared {
-		return c.ReadResource(ctx, &schema.ReadResourceRequestParams{Uri: uri}, opts...)
+		return nil, &skillformat.VerificationError{URI: uri, Reason: "the skill's entry does not list this file"}
 	}
 	revision, err := json.Marshal(manifest.Skill)
 	if err != nil {
@@ -96,10 +122,21 @@ func (c *managedClient) ReadSkillResource(ctx context.Context, manifest *schema.
 		if err != nil {
 			return nil, nil, err
 		}
-		if result == nil {
-			zero := 0
-			return json.RawMessage("null"), &zero, nil
+		// Verify before retaining, and retain only the checked item, so only
+		// checked bytes are ever returned or reused.
+		item, data, err := skillformat.ContentItem(uri, result)
+		if err != nil {
+			return nil, nil, err
 		}
+		if err := skillformat.VerifyFile(file, data); err != nil {
+			return nil, nil, err
+		}
+		if uri == manifest.Skill.Uri {
+			if err := skillformat.VerifyFrontmatter(manifest.Skill, data); err != nil {
+				return nil, nil, err
+			}
+		}
+		result = onlyItem(result, item)
 		raw, err := json.Marshal(result)
 		// A manifest describes immutable bytes; the resource response controls
 		// how long the caller may reuse the read. Honor the shorter lifetime.
@@ -131,4 +168,11 @@ func (c *managedClient) ReadSkillResource(ctx context.Context, manifest *schema.
 	}
 	value.CacheScope = schema.ReadResourceResultCacheScope(decoded.CacheScope)
 	return (*schema.ReadResourceResult)(value), nil
+}
+
+// onlyItem returns a copy of result whose contents are just the checked item.
+func onlyItem(result *schema.ReadResourceResult, item schema.ReadResourceResultContentsElem) *schema.ReadResourceResult {
+	copy := *result
+	copy.Contents = []schema.ReadResourceResultContentsElem{item}
+	return &copy
 }

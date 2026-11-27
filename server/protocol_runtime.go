@@ -149,6 +149,7 @@ func (h *Handler) Discover(ctx context.Context) (*schema.DiscoverResult, *jsonrp
 		h.handler.Initialize(ctx, init, compatResult)
 		result.Capabilities = compatResult.Capabilities
 	}
+	h.withdrawUnservedSettings(&result.Capabilities)
 	return result, nil
 }
 
@@ -173,6 +174,19 @@ func (h *Handler) finalizeResult(version string, result interface{}) {
 		}
 	case *schema.GetSkillResult:
 		value.ResultType = completeResultType
+		if version == schema.LatestProtocolVersion {
+			value.Meta = meta
+			value.TtlMs, value.CacheScope = cacheHints(value.TtlMs, value.CacheScope)
+		} else {
+			value.TtlMs = nil
+			value.CacheScope = ""
+		}
+	case *schema.ReadResourceDirectoryResult:
+		value.ResultType = completeResultType
+		if value.Resources == nil {
+			// An empty directory is an empty array, never null.
+			value.Resources = []schema.Resource{}
+		}
 		if version == schema.LatestProtocolVersion {
 			value.Meta = meta
 			value.TtlMs, value.CacheScope = cacheHints(value.TtlMs, value.CacheScope)

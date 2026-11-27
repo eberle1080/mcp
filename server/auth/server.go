@@ -90,7 +90,7 @@ func (s *Service) resolveAuthorizationRule(jRequest *jsonrpc.Request) (*authoriz
 		return nil, ""
 	}
 	switch jRequest.Method {
-	case schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesList, schema.MethodResourcesTemplatesList:
+	case schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesDirectoryRead, schema.MethodResourcesList, schema.MethodResourcesTemplatesList:
 		rules := s.resourceRules(jRequest)
 		if len(rules) == 0 {
 			return nil, ""

@@ -10,6 +10,25 @@ import (
 	mcpclient "github.com/eberle1080/mcp/client"
 )
 
+// DirectoryClient is optional: clients that can call SEP-2640's
+// resources/directory/read.
+type DirectoryClient interface {
+	ReadResourceDirectory(context.Context, string, *string, ...mcpclient.RequestOption) (*schema.ReadResourceDirectoryResult, error)
+}
+
+func (c *managedClient) ReadResourceDirectory(ctx context.Context, uri string, cursor *string, opts ...mcpclient.RequestOption) (*schema.ReadResourceDirectoryResult, error) {
+	client, release, err := c.use()
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	d, ok := client.(DirectoryClient)
+	if !ok {
+		return nil, fmt.Errorf("MCP client does not support resources/directory/read")
+	}
+	return d.ReadResourceDirectory(ctx, uri, cursor, opts...)
+}
+
 // SkillsClient is optional; older MCP client implementations remain usable.
 type SkillsClient interface {
 	ListSkills(context.Context, *string, ...mcpclient.RequestOption) (*schema.ListSkillsResult, error)
