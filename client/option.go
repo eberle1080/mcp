@@ -55,6 +55,23 @@ func WithCapabilities(capabilities schema.ClientCapabilities) Option {
 	}
 }
 
+// WithExtension declares support for a protocol extension, such as MCP Apps
+// (apps.ExtensionID with apps.ClientSettings()). The declaration is sent with
+// initialize, and with every request in 2026-07-28.
+func WithExtension(id string, settings map[string]interface{}) Option {
+	return func(c *Client) {
+		extensions := make(map[string]map[string]interface{}, len(c.capabilities.Extensions)+1)
+		for key, value := range c.capabilities.Extensions {
+			extensions[key] = value
+		}
+		if settings == nil {
+			settings = map[string]interface{}{}
+		}
+		extensions[id] = settings
+		c.capabilities.Extensions = extensions
+	}
+}
+
 // WithMetadata with meta
 func WithMetadata(metadata map[string]any) Option {
 	return func(c *Client) {
