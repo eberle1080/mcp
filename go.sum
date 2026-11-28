@@ -19,8 +19,8 @@ github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 h1:8UrgZ3GkP4i/CLijOJx79Yu+etly
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0/go.mod h1:v57UDF4pDQJcEfFUCRop3lJL149eHGSe9Jvczhzjo/0=
 github.com/eberle1080/gosh v0.0.0-20261126040201-a5d2a6cfd919 h1:jWr9gDq09frq11t5zYoELFTBFhFgXs5Aa0UisKsWjs8=
 github.com/eberle1080/gosh v0.0.0-20261126040201-a5d2a6cfd919/go.mod h1:GJei/7p+4rVfPCfdswWZBBSofYk7wN8XUkz+MMIPblY=
-github.com/eberle1080/jsonrpc v0.0.0-20261128034138-ee26c8a73345 h1:5vePKVkyDCMl3GBgEKvN+c+GOC9kwlDZijO5s1AC6dU=
-github.com/eberle1080/jsonrpc v0.0.0-20261128034138-ee26c8a73345/go.mod h1:YLayhj6/LGgqtZUAummPHvKbJ9srYZySoK12v+Ki7rU=
+github.com/eberle1080/jsonrpc v0.0.0-20261128034539-d471a35c308a h1:585cY4uTVPTy0rDSELwBWyA48cA3uN00dNrseDdJmeQ=
+github.com/eberle1080/jsonrpc v0.0.0-20261128034539-d471a35c308a/go.mod h1:YLayhj6/LGgqtZUAummPHvKbJ9srYZySoK12v+Ki7rU=
 github.com/eberle1080/mcp-protocol v0.0.0-20261128032603-975c6020971a h1:Xs1LpxdEiokqnobrp3FrwfPkapGMZlYYNqexGsb7v6c=
 github.com/eberle1080/mcp-protocol v0.0.0-20261128032603-975c6020971a/go.mod h1:i+VrLWROdcERXWXySZI/+8c2IVWe/HICJNKVa6YjpTo=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
