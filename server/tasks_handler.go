@@ -144,7 +144,12 @@ func newTaskStream(ctx context.Context, send func(context.Context, tasks.Task)) 
 		select {
 		case <-stream.ready:
 		case <-stream.done:
-			return
+			// Released and stopped together: still send what was queued.
+			select {
+			case <-stream.ready:
+			default:
+				return
+			}
 		case <-ctx.Done():
 			return
 		}
