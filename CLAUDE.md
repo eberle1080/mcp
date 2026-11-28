@@ -249,6 +249,7 @@ The `schema` package (from mcp-protocol) defines all protocol types:
 - **Authentication**: `/docs/authentication.md` - OAuth2/OIDC setup
 - **Bridge Usage**: `/docs/bridge.md` - proxy/bridge binary guide
 - **Client Usage**: `/docs/client.md` - client API guide
+- **Skills**: `/docs/skills.md` - serving skills (SEP-2640) and loading them with `client/skillhost`
 - **Official MCP Spec**: https://modelcontextprotocol.io/introduction
 
 ## Module and Dependencies

@@ -32,6 +32,7 @@ func (h *Handler) Initialize(ctx context.Context, request *jsonrpc.Request) (*sc
 	}
 
 	h.handler.Initialize(ctx, h.clientInitialize, &result)
+	h.withdrawUnservedSettings(&result.Capabilities)
 	return &result, nil
 }
 

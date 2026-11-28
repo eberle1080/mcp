@@ -21,7 +21,7 @@ func (s *Service) resourceRules(request *jsonrpc.Request) []*authorization.Autho
 		return nil
 	}
 	switch request.Method {
-	case schema.MethodResourcesRead, schema.MethodResourcesList, schema.MethodResourcesTemplatesList, schema.MethodSkillsList, schema.MethodSkillsGet:
+	case schema.MethodResourcesRead, schema.MethodResourcesList, schema.MethodResourcesTemplatesList, schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesDirectoryRead:
 	default:
 		return nil
 	}
@@ -41,6 +41,11 @@ func (s *Service) resourceRules(request *jsonrpc.Request) []*authorization.Autho
 		if request.Method == schema.MethodSkillsGet && strings.HasSuffix(params.Uri, "/SKILL.md") {
 			match = match || strings.HasPrefix(uri, strings.TrimSuffix(params.Uri, "SKILL.md"))
 		}
+		// A directory listing names every file below it, so it needs every
+		// rule that protects one of them.
+		if request.Method == schema.MethodResourcesDirectoryRead && params.Uri != "" {
+			match = match || strings.HasPrefix(uri, params.Uri+"/")
+		}
 		if match {
 			keys = append(keys, uri)
 		}
@@ -56,7 +61,7 @@ func (s *Service) resourceRules(request *jsonrpc.Request) []*authorization.Autho
 func (s *Service) authorizeResources(ctx context.Context, request *jsonrpc.Request, response *jsonrpc.Response, token *authorization.Token) bool {
 	request = skillResourceRequest(request)
 	switch request.Method {
-	case schema.MethodSkillsList, schema.MethodSkillsGet:
+	case schema.MethodSkillsList, schema.MethodSkillsGet, schema.MethodResourcesDirectoryRead:
 	case schema.MethodResourcesRead, schema.MethodResourcesList, schema.MethodResourcesTemplatesList:
 		if !s.RequireResourceAuthorization {
 			return false
