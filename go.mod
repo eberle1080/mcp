@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/eberle1080/gosh v0.0.0-20261126040201-a5d2a6cfd919
 	github.com/eberle1080/jsonrpc v0.0.0-20261126042146-80652d8420a7
-	github.com/eberle1080/mcp-protocol v0.0.0-20261127204737-67e17936a359
+	github.com/eberle1080/mcp-protocol v0.0.0-20261128031620-9e93ba345d24
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.6.1

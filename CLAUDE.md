@@ -250,6 +250,7 @@ The `schema` package (from mcp-protocol) defines all protocol types:
 - **Bridge Usage**: `/docs/bridge.md` - proxy/bridge binary guide
 - **Client Usage**: `/docs/client.md` - client API guide
 - **Skills**: `/docs/skills.md` - serving skills (SEP-2640) and loading them with `client/skillhost`
+- **MCP Apps**: `/docs/apps.md` - serving tool views (SEP-1865) and the host side in `client/apphost`
 - **Official MCP Spec**: https://modelcontextprotocol.io/introduction
 
 ## Module and Dependencies
