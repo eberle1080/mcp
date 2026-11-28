@@ -24,6 +24,7 @@ import (
 	stdiosrv "github.com/eberle1080/jsonrpc/transport/server/stdio"
 
 	protoClient "github.com/eberle1080/mcp-protocol/client"
+	"github.com/eberle1080/mcp-protocol/extension/apps"
 	protologger "github.com/eberle1080/mcp-protocol/logger"
 	"github.com/eberle1080/mcp-protocol/schema"
 	protoserver "github.com/eberle1080/mcp-protocol/server"
@@ -98,11 +99,19 @@ func (ci *clientImplementer) Initialize(ctx context.Context, init *schema.Initia
 	if ci.clientOps != nil {
 		ci.clientOps.Init(ctx, &init.Capabilities)
 	}
-	ci.endpoint = client.New("proxy", "0.1", ci.downstream,
+	options := []client.Option{
 		client.WithProtocolVersion(init.ProtocolVersion),
 		client.WithClientHandler(ci.clientHandler),
 		client.WithReconnect(ci.reconnect),
-		client.WithCapabilities(schema.ClientCapabilities{Experimental: map[string]map[string]interface{}{}}))
+		client.WithCapabilities(schema.ClientCapabilities{Experimental: map[string]map[string]interface{}{}}),
+	}
+	// A host that renders MCP Apps behind the bridge says so upstream, or the
+	// server would hide the tools only its views may call. The bridge forwards
+	// tools/call and resources/read, which is all a view needs.
+	if settings, ok := init.Capabilities.Extensions[apps.ExtensionID]; ok {
+		options = append(options, client.WithExtension(apps.ExtensionID, settings))
+	}
+	ci.endpoint = client.New("proxy", "0.1", ci.downstream, options...)
 	res, err := ci.endpoint.Initialize(ctx)
 	if err != nil {
 		return

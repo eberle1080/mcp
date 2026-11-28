@@ -288,6 +288,11 @@ type ClientOptions struct {
 	// across reconnects and calls.
 	CookieJar http.CookieJar `yaml:"-" json:"-"`
 
+	// Extensions declares the protocol extensions this client supports, keyed
+	// by identifier, with each one's settings: for MCP Apps,
+	// {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}.
+	Extensions map[string]map[string]interface{} `yaml:"extensions,omitempty" json:"extensions,omitempty"`
+
 	// PingIntervalSeconds overrides the default background ping interval
 	// used to keep MCP sessions warm and detect transport failures.
 	// If <= 0, the default is used (currently 60 seconds).
@@ -867,6 +872,9 @@ func (c *ClientOptions) Options(authRT *authtransport.RoundTripper) []client.Opt
 	}
 	if c.ProtocolVersion != "" {
 		result = append(result, client.WithProtocolVersion(c.ProtocolVersion))
+	}
+	for id, settings := range c.Extensions {
+		result = append(result, client.WithExtension(id, settings))
 	}
 	// The legacy JSON-RPC auth interceptor can start interactive OAuth flows;
 	// in delegated mode the transport-level coordinator is the sole owner of

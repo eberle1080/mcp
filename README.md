@@ -260,6 +260,7 @@ See the Server Guide for deeper coverage of resources and prompts.
 - **Bridge (local proxy) Guide**: [docs/bridge.md](docs/bridge.md)
 - **Client Guide**: [docs/client.md](docs/client.md)
 - **Skills (serving and loading Agent Skills)**: [docs/skills.md](docs/skills.md)
+- **MCP Apps (interactive views for tools)**: [docs/apps.md](docs/apps.md)
  
 ### Creating a Client
 
