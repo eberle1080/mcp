@@ -261,6 +261,7 @@ See the Server Guide for deeper coverage of resources and prompts.
 - **Client Guide**: [docs/client.md](docs/client.md)
 - **Skills (serving and loading Agent Skills)**: [docs/skills.md](docs/skills.md)
 - **MCP Apps (interactive views for tools)**: [docs/apps.md](docs/apps.md)
+- **Tasks (answering tool calls asynchronously)**: [docs/tasks.md](docs/tasks.md)
  
 ### Creating a Client
 

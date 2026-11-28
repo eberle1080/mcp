@@ -15,6 +15,7 @@ import (
 	streamauth "github.com/eberle1080/jsonrpc/transport/server/auth"
 	"github.com/eberle1080/jsonrpc/transport/server/http/session"
 	"github.com/eberle1080/mcp-protocol/authorization"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 	"github.com/eberle1080/mcp-protocol/syncmap"
 	"github.com/eberle1080/mcp/client/auth/transport"
@@ -122,6 +123,10 @@ func (s *Service) resolveAuthorizationRule(jRequest *jsonrpc.Request) (*authoriz
 				return rule, "tool/" + params.Name
 			}
 		}
+	case tasks.MethodGet, tasks.MethodUpdate, tasks.MethodCancel, schema.MethodSubscriptionsListen:
+		// A task belongs to the caller that created it, and a listen stream
+		// may follow tasks, so both need the caller's credentials whenever
+		// the server requires them at all.
 	default:
 		return nil, ""
 	}

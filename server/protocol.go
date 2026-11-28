@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/eberle1080/jsonrpc"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 )
 
@@ -232,6 +233,9 @@ func standardHeaderNameField(method string) string {
 		return "name"
 	case schema.MethodResourcesRead:
 		return "uri"
+	case tasks.MethodGet, tasks.MethodUpdate, tasks.MethodCancel:
+		// Routes a task's requests to the instance that holds it.
+		return "taskId"
 	default:
 		return ""
 	}

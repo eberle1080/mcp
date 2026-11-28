@@ -31,6 +31,7 @@ import (
 
 	"github.com/eberle1080/mcp-protocol/authorization"
 	"github.com/eberle1080/mcp-protocol/oauth2/meta"
+	"github.com/eberle1080/mcp-protocol/extension/tasks"
 	"github.com/eberle1080/mcp-protocol/schema"
 
 	pclient "github.com/eberle1080/mcp-protocol/client"
@@ -261,6 +262,9 @@ func standardHeaderNameField(method string) string {
 		return "name"
 	case schema.MethodResourcesRead:
 		return "uri"
+	case tasks.MethodGet, tasks.MethodUpdate, tasks.MethodCancel:
+		// Lets intermediaries route a task's requests to the instance holding it.
+		return "taskId"
 	default:
 		return ""
 	}

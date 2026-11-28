@@ -269,8 +269,20 @@ func (c *Client) GetPrompt(ctx context.Context, params *schema.GetPromptRequestP
 	return send[schema.GetPromptRequestParams, schema.GetPromptResult](ctx, c, schema.MethodPromptsGet, params, options...)
 }
 
+// CallTool calls a tool and returns its result. If the client declared the
+// Tasks extension and the server answers with a task, CallTool waits for the
+// task (see AwaitTask) and returns its result, so callers need not know a
+// task was involved. CallToolTask returns the task instead.
 func (c *Client) CallTool(ctx context.Context, params *schema.CallToolRequestParams, options ...RequestOption) (*schema.CallToolResult, error) {
-	return send[schema.CallToolRequestParams, schema.CallToolResult](ctx, c, schema.MethodToolsCall, params, options...)
+	if !c.declaresTasks() {
+		return send[schema.CallToolRequestParams, schema.CallToolResult](ctx, c, schema.MethodToolsCall, params, options...)
+	}
+	result, task, err := c.CallToolTask(ctx, params, options...)
+	if err != nil || task == nil {
+		return result, err
+	}
+	// The polls are requests of their own: never reuse the call's request ID.
+	return c.AwaitTask(ctx, *task, append(options, WithJsonRpcRequestId(nil))...)
 }
 
 func (c *Client) Complete(ctx context.Context, params *schema.CompleteRequestParams, options ...RequestOption) (*schema.CompleteResult, error) {
@@ -551,6 +563,40 @@ func expiredHTTPSession(active transport.Transport, err error) bool {
 }
 
 func send[P any, R any](ctx context.Context, client *Client, method string, parameters *P, options ...RequestOption) (*R, error) {
+	raw, err := sendRaw(ctx, client, method, parameters, options...)
+	if err != nil {
+		return nil, err
+	}
+	return decodeResult[R](method, raw)
+}
+
+// decodeResult decodes a result the way send always has, including the
+// legacy cache-hint normalization.
+func decodeResult[R any](method string, raw json.RawMessage) (*R, error) {
+	var result R
+	resultJSON := normalizeResultJSON(method, raw)
+	if err := json.Unmarshal(resultJSON, &result); err != nil {
+		return nil, jsonrpc.NewInternalError(err.Error(), nil)
+	}
+
+	// July decoding requires cache fields, but older peers never supplied
+	// those hints. Preserve that absence for catalog owners: synthesized
+	// private+zero must not become an explicit no-cache instruction. A real
+	// zero TTL (including one sent without cacheScope) remains authoritative.
+	if tools, ok := any(&result).(*schema.ListToolsResult); ok {
+		var hints struct {
+			CacheScope string `json:"cacheScope"`
+			TTL        *int   `json:"ttlMs"`
+		}
+		if json.Unmarshal(raw, &hints) == nil && hints.CacheScope == "" && hints.TTL == nil {
+			tools.CacheScope = ""
+		}
+	}
+	return &result, nil
+}
+
+// sendRaw sends one request and returns its raw result.
+func sendRaw[P any](ctx context.Context, client *Client, method string, parameters *P, options ...RequestOption) (json.RawMessage, error) {
 	if !client.isInitialized() { //ensure initialized
 		if err := client.ensureInitialized(ctx); err != nil {
 			if authcfg.IsLinkRequired(err) {
@@ -664,27 +710,7 @@ func send[P any, R any](ctx context.Context, client *Client, method string, para
 	if response.Error != nil {
 		return nil, response.Error
 	}
-	var result R
-	resultJSON := normalizeResultJSON(method, response.Result)
-	err = json.Unmarshal(resultJSON, &result)
-	if err != nil {
-		return nil, jsonrpc.NewInternalError(err.Error(), nil)
-	}
-
-	// July decoding requires cache fields, but older peers never supplied
-	// those hints. Preserve that absence for catalog owners: synthesized
-	// private+zero must not become an explicit no-cache instruction. A real
-	// zero TTL (including one sent without cacheScope) remains authoritative.
-	if tools, ok := any(&result).(*schema.ListToolsResult); ok {
-		var hints struct {
-			CacheScope string `json:"cacheScope"`
-			TTL        *int   `json:"ttlMs"`
-		}
-		if json.Unmarshal(response.Result, &hints) == nil && hints.CacheScope == "" && hints.TTL == nil {
-			tools.CacheScope = ""
-		}
-	}
-	return &result, nil
+	return response.Result, nil
 }
 
 // withProtocolMeta keeps generated request metadata consistent with the wire version.
