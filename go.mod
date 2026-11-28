@@ -4,8 +4,8 @@ go 1.26.0
 
 require (
 	github.com/eberle1080/gosh v0.0.0-20261126040201-a5d2a6cfd919
-	github.com/eberle1080/jsonrpc v0.0.0-20261126042146-80652d8420a7
-	github.com/eberle1080/mcp-protocol v0.0.0-20261128031637-17fe5ec822f2
+	github.com/eberle1080/jsonrpc v0.0.0-20261128034539-d471a35c308a
+	github.com/eberle1080/mcp-protocol v0.0.0-20261128032603-975c6020971a
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jessevdk/go-flags v1.6.1
@@ -44,10 +44,10 @@ require (
 	github.com/viant/x v0.6.1-0.20261106041415-0487ec66884b // indirect
 	github.com/viant/xunsafe v0.11.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
